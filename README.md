@@ -1,178 +1,205 @@
-✅ Gensyn RL-Swarm — One-Command Auto Installer
+# 🤖 Deklan Node Bot — Telegram Control & Monitoring
 
-Installer otomatis untuk menjalankan Gensyn RL-Swarm Node di VPS dengan 1 perintah.
-Installer akan:
-✅ Validasi identity
-✅ Install dependencies
-✅ Install Docker
-✅ Clone repository RL-Swarm
-✅ Copy identity ke folder keys
-✅ Setup systemd service
-✅ Auto-start node
+Bot Telegram untuk monitoring & mengendalikan **Gensyn RL-Swarm Node** langsung dari HP 📱  
+Tanpa repot login server! Full otomatis.  
 
-Cocok untuk pindah VPS cepat atau deploy massal 🚀
+---
 
-📌 Persiapan (Wajib)
+## ✨ Fitur Utama
 
-Sebelum menjalankan installer, siapkan 3 file identity berikut:
+✅ Cek status CPU / RAM / Disk / Uptime  
+✅ Start / Stop / Restart Node  
+✅ Lihat Logs  
+✅ Cek Round terbaru  
+✅ Akses aman (ALLOWLIST)  
+✅ Auto-monitor tiap X menit  
+✅ systemd background service  
+✅ Menu tombol Telegram  
 
-swarm.pem
-userApiKey.json
-userData.json
+---
 
+## 🚀 1) Instalasi Cepat
 
-Upload ketiga file ke lokasi:
+> Jalankan perintah ini:
 
-/root/deklan/
+```bash
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-node-bot/main/install.sh)
+```
 
+Bot otomatis:
+✅ Install dependensi  
+✅ Setup folder  
+✅ Install service  
+✅ Auto-start  
 
-Folder /root/deklan otomatis dibuat oleh installer
-tetapi file harus di-upload manual (demi keamanan)
+---
 
-Tanpa file ini, installer akan berhenti & minta kamu upload dulu ✅
+## ⚙️ 2) Konfigurasi
 
-🚀 Install Node (1 Command)
+Buka file konfigurasi:
 
-Jalankan perintah berikut:
+```bash
+nano /opt/deklan-node-bot/.env
+```
 
-bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
+Contoh isi:
 
+```
+BOT_TOKEN=123456:abcdefgxxxxxxxx
+CHAT_ID=12345678
+ALLOWED_USER_IDS=123456,987654
+NODE_NAME=Gensyn-01
+MONITOR_INTERVAL=10
+```
 
-Script akan otomatis:
-✔ Cek identity
-✔ Install dependencies
-✔ Install Docker
-✔ Clone rl-swarm
-✔ Copy identity
-✔ Install systemd
-✔ Start node
+| Key | Fungsi |
+|-----|--------|
+| BOT_TOKEN | Token Telegram Bot |
+| CHAT_ID | ID Admin |
+| ALLOWED_USER_IDS | (opsional) daftar user |
+| NODE_NAME | Nama node |
+| MONITOR_INTERVAL | Cek otomatis (menit) |
 
-Jika berhasil → node berjalan otomatis ✅
+> Minimal wajib: **BOT_TOKEN + CHAT_ID**
 
-✅ Cek Status Node
+---
 
-Status:
+## 🏃 3) Jalankan / Cek Status
 
-systemctl status gensyn
+Cek status bot:
 
+```bash
+systemctl status bot
+```
 
-Log real-time:
+Restart bot:
 
-journalctl -u gensyn -f
+```bash
+systemctl restart bot
+```
 
-🔁 Restart Node
+Monitoring timer:
 
-Script helper:
+```bash
+systemctl start monitor.timer
+```
 
-bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/restart.sh)
+Cek timer:
 
+```bash
+systemctl status monitor.timer
+```
 
-Manual:
+Jalankan monitor manual:
 
-systemctl restart gensyn
+```bash
+systemctl start monitor.service
+```
 
-▶ Start / Stop Manual
+---
 
-Start:
+## 💬 4) Telegram Commands
 
-systemctl start gensyn
+Ketik:
 
+```
+/start
+```
 
-Stop:
+→ Bot akan tampilkan menu tombol ✅  
 
-systemctl stop gensyn
+### Aksi:
 
-📁 Lokasi Identity
-File	Path
-swarm.pem	/root/deklan/swarm.pem
-userApiKey.json	/root/deklan/userApiKey.json
-userData.json	/root/deklan/userData.json
-(copy otomatis) →	/home/gensyn/rl_swarm/keys/
+| Menu | Fungsi |
+|------|--------|
+| ✅ Status | Info CPU / RAM / Disk / Up |
+| ▶ Start | Start node |
+| ⏹ Stop | Stop node |
+| 🔄 Restart | Restart node |
+| 📜 Logs | Tampilkan logs |
+| 🔢 Round | Round terbaru |
 
-Jika ingin ganti identity → cukup upload ulang file ke /root/deklan/ lalu:
+---
 
-systemctl restart gensyn
+## 📁 5) Lokasi File Penting
 
-🗂 Struktur Repo
-deklan-autoinstall/
-├── install.sh       → Installer utama
-├── restart.sh       → Restart helper
-├── run_node.sh      → Node launcher
-└── gensyn.service   → systemd service config
+| Lokasi | Fungsi |
+|--------|--------|
+| `/opt/deklan-node-bot/` | Folder bot |
+| `bot.py` | Main bot |
+| `.env` | Config |
+| `bot.service` | systemd bot |
+| `monitor.*` | Monitoring service |
 
-🔎 Debug
+---
 
-Lihat log node:
+## ⏱ 6) Auto Monitoring
 
-journalctl -u gensyn -f
+✅ Tiap X menit bot cek:
+- Node berjalan atau mati
+- Round naik / macet
 
+Bila ada masalah = **notif Telegram otomatis** ✅  
 
-Cek Docker:
+---
 
-docker ps
+## ❌ Uninstall
 
+```
+systemctl stop bot monitor.service monitor.timer
+systemctl disable bot monitor.service monitor.timer
+rm /etc/systemd/system/bot.service
+rm /etc/systemd/system/monitor.*
+rm -rf /opt/deklan-node-bot
+```
 
-Cek folder keys:
+---
 
-ls -l /home/gensyn/rl_swarm/keys/
+## 🧩 Struktur Repo
 
-♻ Update Node
+```
+deklan-node-bot
+│── bot.py
+│── install.sh
+│── requirements.txt
+│── .env.example
+└── bot.service
+```
 
-Jika rl-swarm update:
+---
 
-cd /home/gensyn/rl_swarm
-git pull
-systemctl restart gensyn
+## 📡 Contoh Output Telegram
 
-❌ Uninstall Node
-systemctl stop gensyn
-systemctl disable gensyn
-rm -f /etc/systemd/system/gensyn.service
-rm -rf /home/gensyn/rl_swarm
-rm -rf /root/deklan
-systemctl daemon-reload
+```
+🟢 NODE RUNNING
+CPU: 35%
+RAM: 62%
+Disk: 70%
+Uptime: 12h 21m
+Round: 18735
+```
 
-✅ Keunggulan
+atau:
 
-✔ 1-command installer
-✔ Identity auto-copy
-✔ Systemd auto-restart
-✔ Bisa pindah VPS cepat
-✔ Bersih & minimalis
+```
+🔴 NODE STOPPED
+Last Round: 18735
+```
 
-Upload identity → run installer → node otomatis jalan ✅
-Praktis buat deploy banyak node 🚀
+---
 
-⚙ Requirements
+## 🛣 Roadmap
 
-Ubuntu 20.04 / 22.04 / 24.04
+- Multi-node
+- Web UI
+- Cluster manager
+- Auto-update
+- Auto backup
 
-RAM minimal 4GB (lebih besar lebih baik)
+---
 
-Disk minimal 30GB
+## ❤️ Credits
 
-Koneksi internet stabil
+Built with ❤️ by **Deklan**
 
-🔥 Next Improvements (Opsional)
-
-Fitur yang bisa ditambahkan:
-✅ Telegram alerts
-✅ Auto-update checker
-✅ Auto-UI tunnel
-✅ Remote monitoring
-✅ Multi-node manager
-
-Tinggal bilang → bisa gua bantu setup 💪
-
-✨ Credits
-
-Auto-installer dibuat oleh: @deklan400
-Based on: https://github.com/gensyn-ai/rl-swarm
-
-✅ Kesimpulan
-
-Installer ini memungkinkan Anda menjalankan Gensyn RL-Swarm node
-dalam hitungan detik hanya dengan satu perintah.
-
-Simple. Cepat. Aman 🔥
-Cocok untuk deploy single node maupun multi-node.
+END OF README
