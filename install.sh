@@ -2,117 +2,88 @@
 set -e
 
 ###########################################################################
-#   GENSYN RL-SWARM AUTO INSTALLER (UPGRADED)
+#   GENSYN RL-SWARM CLEAN INSTALLER (FIXED)
 #   by Deklan & GPT-5
 ###########################################################################
 
-# ========= COLORS =========
 GREEN="\e[32m"
 RED="\e[31m"
 YELLOW="\e[33m"
 CYAN="\e[36m"
 NC="\e[0m"
 
-# ========= SETTINGS ========
 IDENTITY_DIR="/root/deklan"
-REQUIRED_FILES=("swarm.pem" "userData.json" "userApiKey.json")
-RL_HOME="/home/gensyn"
-RL_DIR="$RL_HOME/rl_swarm"
-KEYS_DIR="$RL_DIR/keys"
+RL_DIR="/root/rl_swarm"
 SERVICE_NAME="gensyn"
-GITHUB_SERVICE_URL="https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/gensyn.service"
 
-echo -e "
-${CYAN}=====================================================
-🔥  GENSYN RL-SWARM AUTO INSTALLER — UPGRADED
-=====================================================${NC}
-"
+REQUIRED_FILES=("swarm.pem" "userData.json" "userApiKey.json")
 
-###########################################################################
-#   HELPERS
-###########################################################################
 msg()   { echo -e "${GREEN}✅ $1${NC}"; }
 warn()  { echo -e "${YELLOW}⚠️  $1${NC}"; }
 err()   { echo -e "${RED}❌ $1${NC}"; }
 info()  { echo -e "${CYAN}$1${NC}"; }
 
-# -------- sudo check --------
+echo -e "
+${CYAN}=====================================================
+🔥  GENSYN RL-SWARM CLEAN INSTALLER
+=====================================================${NC}
+"
+
 if [[ $EUID -ne 0 ]]; then
-    err "Run this script as ROOT."
+    err "Run as ROOT"
     exit 1
 fi
 
-
 ###########################################################################
-#   CHECK IDENTITY FILES
+#   CHECK KEYS
 ###########################################################################
-info "[1/11] Checking identity files…"
-mkdir -p "$IDENTITY_DIR"
-
-MISSING=0
+info "[1/8] Checking identity files…"
 for FILE in "${REQUIRED_FILES[@]}"; do
     if [[ ! -f "$IDENTITY_DIR/$FILE" ]]; then
         err "Missing: $IDENTITY_DIR/$FILE"
-        MISSING=1
+        NEED=1
     else
         msg "Found → $FILE"
     fi
 done
 
-if [[ "$MISSING" -eq 1 ]]; then
-    echo ""
-    warn "Place your identity files here:"
-    warn " → $IDENTITY_DIR"
-echo "
-Required files:
- - swarm.pem
- - userData.json
- - userApiKey.json
-
-Then re-run installer:
-bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
-"
+if [[ "$NEED" == 1 ]]; then
+    err "Missing identity files — abort"
     exit 1
 fi
-
 
 ###########################################################################
 #   UPDATE SYSTEM
 ###########################################################################
-info "[2/11] Updating system…"
+info "[2/8] Updating system…"
 apt update -y && apt upgrade -y
 msg "System updated"
 
-
 ###########################################################################
-#   INSTALL BASE DEPENDENCIES
+#   INSTALL DEPENDENCIES
 ###########################################################################
-info "[3/11] Installing dependencies…"
+info "[3/8] Installing deps…"
 apt install -y curl git unzip build-essential pkg-config libssl-dev screen jq nano
 msg "Dependencies OK"
 
-
 ###########################################################################
-#   OPTIONAL — INSTALL NODE & YARN
+#   OPTIONAL NODE + YARN
 ###########################################################################
-read -p "Install NodeJS + Yarn? (recommended) [Y/n] > " ans
+read -p "Install NodeJS+Yarn? [Y/n] > " ans
 if [[ "$ans" =~ ^[Nn]$ ]]; then
     warn "Skipping Node + Yarn"
 else
     info "Installing NodeJS + Yarn…"
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
     apt install -y nodejs
-
     npm install -g yarn >/dev/null 2>&1 || true
     msg "NodeJS + Yarn installed ✅"
 fi
 
-
 ###########################################################################
-#   INSTALL DOCKER
+#   DOCKER INSTALL
 ###########################################################################
-info "[4/11] Checking Docker…"
-
+info "[4/8] Checking Docker…"
 if ! command -v docker >/dev/null 2>&1; then
     info "Installing Docker…"
     install -m 0755 -d /etc/apt/keyrings
@@ -129,105 +100,66 @@ $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
     apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
     msg "Docker installed ✅"
 else
-    msg "Docker already installed → skipping"
+    msg "Docker OK — skip"
 fi
 
 systemctl enable --now docker >/dev/null 2>&1 || true
 
-
 ###########################################################################
-#   CREATE gensyn USER + DIRECTORY
+#   CLONE RL-SWARM
 ###########################################################################
-info "[5/11] Preparing RL-Swarm folder…"
-
-if ! id "gensyn" >/dev/null 2>&1; then
-    useradd -m -s /bin/bash gensyn
-fi
-
-mkdir -p "$RL_HOME"
-chown -R gensyn:gensyn "$RL_HOME"
-msg "User + folder ready"
-
-
-###########################################################################
-#   CLONE / UPDATE RL-SWARM
-###########################################################################
-info "[6/11] Managing RL-Swarm…"
+info "[5/8] Managing RL-Swarm…"
 
 if [[ ! -d "$RL_DIR" ]]; then
-    sudo -u gensyn git clone https://github.com/gensyn-ai/rl-swarm "$RL_DIR"
+    git clone https://github.com/gensyn-ai/rl-swarm "$RL_DIR"
     msg "Repo cloned ✅"
 else
-    echo -e "${YELLOW}Folder already exists → $RL_DIR${NC}"
-    read -p "Update RL-Swarm repo (git pull)? [Y/n] > " pull_ans
-    if [[ "$pull_ans" =~ ^[Nn]$ ]]; then
-        warn "Skipping update"
-    else
+    warn "Folder exists → $RL_DIR"
+    read -p "Update repo (git pull)? [Y/n] > " pull_ans
+    if [[ ! "$pull_ans" =~ ^[Nn]$ ]]; then
         pushd "$RL_DIR" >/dev/null
-        sudo -u gensyn git pull
+        git pull
         popd >/dev/null
         msg "Repo updated ✅"
+    else
+        warn "Skip update"
     fi
 fi
 
+###########################################################################
+#   PREPARE KEYS
+###########################################################################
+info "[6/8] Preparing keys…"
+rm -rf "$RL_DIR/keys"
+ln -s "$IDENTITY_DIR" "$RL_DIR/keys"
+msg "Symlink created → $RL_DIR/keys ✅"
 
 ###########################################################################
-#   COPY IDENTITY FILES
+#   CREATE .env
 ###########################################################################
-info "[7/11] Copying identity files…"
+info "[7/8] Creating .env…"
 
-mkdir -p "$KEYS_DIR"
+cat <<EOF > "$RL_DIR/.env"
+GENSYN_KEY_DIR=$IDENTITY_DIR
+PYTHONUNBUFFERED=1
+EOF
 
-for FILE in "${REQUIRED_FILES[@]}"; do
-    cp "$IDENTITY_DIR/$FILE" "$KEYS_DIR/$FILE"
-done
-
-chmod 600 "$KEYS_DIR/swarm.pem"
-chown -R gensyn:gensyn "$KEYS_DIR"
-msg "Identity copied → $KEYS_DIR ✅"
-
+msg ".env ready ✅"
 
 ###########################################################################
-#   INSTALL SYSTEMD SERVICE
-###########################################################################
-info "[8/11] Installing systemd service…"
-
-curl -s -o "/etc/systemd/system/${SERVICE_NAME}.service" "$GITHUB_SERVICE_URL"
-
-systemctl daemon-reload
-systemctl enable --now "$SERVICE_NAME"
-msg "Systemd installed & started ✅"
-
-
-###########################################################################
-#   VALIDATE SERVICE
-###########################################################################
-info "[9/11] Checking node…"
-sleep 2
-
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-    msg "Node is RUNNING ✅"
-else
-    err "Node is NOT running!"
-    echo "journalctl -u $SERVICE_NAME -f"
-fi
-
-
-###########################################################################
-#   FINISH
+#   DONE
 ###########################################################################
 echo -e "
 ${GREEN}=====================================================
- ✅ INSTALLATION COMPLETE
-=====================================================${NC}
+ ✅ INSTALL DONE — NEXT STEP
+=====================================================
+1) Ensure service installed:
+$ systemctl enable $SERVICE_NAME
 
-Service:   ${SERVICE_NAME}
-Folder:    ${RL_DIR}
+2) Start node:
+$ systemctl restart $SERVICE_NAME
 
-Check logs:
-  journalctl -u ${SERVICE_NAME} -f
-
-Restart node:
-  systemctl restart ${SERVICE_NAME}
-
+3) View logs:
+$ journalctl -u $SERVICE_NAME -f
+${NC}
 "
