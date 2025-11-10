@@ -2,14 +2,13 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM — FULL UNINSTALL (UPGRADED)
+#   GENSYN RL-SWARM — CLEAN UNINSTALL
 #   by Deklan & GPT-5
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_HOME="/home/gensyn"
-RL_DIR="$RL_HOME/rl_swarm"
-KEYS_DIR="$RL_DIR/keys"
+RL_DIR="/root/rl_swarm"
+KEY_DIR="/root/deklan"
 
 GREEN="\e[32m"
 RED="\e[31m"
@@ -18,13 +17,13 @@ CYAN="\e[36m"
 NC="\e[0m"
 
 msg()  { echo -e "${GREEN}✅ $1${NC}"; }
-warn() { echo -e "${YELLOW}⚠️ $1${NC}"; }
+warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
 err()  { echo -e "${RED}❌ $1${NC}"; }
 info() { echo -e "${CYAN}$1${NC}"; }
 
 echo -e "
 ${CYAN}=====================================================
-🧹  UNINSTALL GENSYN RL-SWARM
+🧹  CLEAN UNINSTALL GENSYN RL-SWARM
 =====================================================${NC}
 "
 
@@ -33,9 +32,8 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-
 ###########################################################################
-#   STOP & REMOVE SERVICE
+# 1 — Remove Systemd Service
 ###########################################################################
 info "[1/5] Removing systemd service…"
 
@@ -46,50 +44,49 @@ systemctl daemon-reload
 
 msg "Service removed ✅"
 
-
 ###########################################################################
-#   STOP + CLEAN DOCKER CONTAINERS
+# 2 — Clean RL-SWARM Directory
 ###########################################################################
-info "[2/5] Cleaning Docker containers…"
-
-docker ps -aq | xargs -r docker rm -f >/dev/null 2>&1 || true
-docker system prune -af >/dev/null 2>&1 || true
-msg "Docker cleanup OK ✅"
-
-
-###########################################################################
-#   REMOVE RL-SWARM DIRECTORY
-###########################################################################
-info "[3/5] Removing RL-Swarm directory…"
+info "[2/5] Removing RL-Swarm code…"
 
 if [[ -d "$RL_DIR" ]]; then
     rm -rf "$RL_DIR"
     msg "Removed → $RL_DIR"
 else
-    warn "RL dir missing → skip"
+    warn "RL-Swarm folder missing → skip"
 fi
 
-
 ###########################################################################
-#   ASK REMOVE USER
+# 3 — Keys folder (optional)
 ###########################################################################
-info "[4/5] Optional: delete user gensyn"
-
-read -p "Delete user 'gensyn'? [y/N] > " ans
+info "[3/5] Keys folder → $KEY_DIR"
+read -p "Remove keys folder? [y/N] > " ans || true
 if [[ "$ans" =~ ^[Yy]$ ]]; then
-    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-    pkill -u gensyn >/dev/null 2>&1 || true
-    userdel -r gensyn 2>/dev/null || warn "Could not remove user"
-    msg "User 'gensyn' deleted ✅"
+    rm -rf "$KEY_DIR"
+    msg "Keys removed ✅"
 else
-    msg "User kept ✅"
+    warn "Keys retained ✅"
 fi
 
+###########################################################################
+# 4 — Docker cleanup (NON-DESTRUCTIVE)
+###########################################################################
+info "[4/5] Cleaning docker (swarm-cpu only)…"
+
+docker ps -a --filter "name=swarm-cpu" -q | xargs -r docker rm -f >/dev/null 2>&1 || true
+docker images | grep swarm-cpu | awk '{print $3}' | xargs -r docker rmi -f >/dev/null 2>&1 || true
+
+msg "Docker partial cleanup complete ✅"
 
 ###########################################################################
-#   DONE
+# 5 — Final
 ###########################################################################
 echo -e "
-${GREEN}✅ UNINSTALL COMPLETE!
-=====================================================${NC}
+${GREEN}✅ UNINSTALL COMPLETE
+=====================================================
+Remaining items:
+✔ Keys kept (unless deleted)
+✔ Docker untouched (except swarm-cpu)
+=====================================================
+${NC}
 "
