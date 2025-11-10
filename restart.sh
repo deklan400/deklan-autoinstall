@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+###########################################################################
+#   GENSYN RL-SWARM RESTARTER (SAFE)
+#   by Deklan & GPT-5
+###########################################################################
+
 SERVICE_NAME="gensyn"
-RL_DIR="/home/gensyn/rl_swarm"
+
+GREEN="\e[32m"
+RED="\e[31m"
+CYAN="\e[36m"
+NC="\e[0m"
+
+say()  { echo -e "${GREEN}✅ $1${NC}"; }
+fail() { echo -e "${RED}❌ $1${NC}"; exit 1; }
+note() { echo -e "${CYAN}$1${NC}"; }
 
 echo "=================================================="
 echo " 🔄 Restarting Gensyn RL-Swarm Node"
@@ -14,20 +27,13 @@ echo ""
 # CHECK SERVICE
 # ---------------------------------------
 if ! systemctl list-unit-files | grep -q "$SERVICE_NAME"; then
-    echo "❌ ERROR: Service '$SERVICE_NAME' not found"
-    exit 1
+    fail "Service '$SERVICE_NAME' not found"
 fi
 
 # ---------------------------------------
-# STOP ZOMBIE DOCKER
+# RESTART SERVICE
 # ---------------------------------------
-echo "[*] Cleaning zombies…"
-docker ps -aq | xargs -r docker rm -f >/dev/null 2>&1 || true
-
-# ---------------------------------------
-# RESTART
-# ---------------------------------------
-echo "[*] Restarting service: $SERVICE_NAME"
+note "[*] Restarting service: $SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
 
 sleep 2
@@ -38,9 +44,9 @@ sleep 2
 STATUS=$(systemctl is-active "$SERVICE_NAME")
 
 if [[ "$STATUS" == "active" ]]; then
-    echo "✅ Service Running"
+    say "Service Running ✅"
 else
-    echo "❌ Service NOT running"
+    fail "Service NOT running"
 fi
 
 echo ""
@@ -48,9 +54,9 @@ systemctl status "$SERVICE_NAME" --no-pager || true
 echo ""
 
 # ---------------------------------------
-# QUICK ERROR CHECK
+# QUICK LOG CHECK
 # ---------------------------------------
-echo "[*] Checking recent logs (last 20 lines)…"
+note "[*] Recent logs (last 20 lines)…"
 journalctl -u "$SERVICE_NAME" -n 20 --no-pager || true
 echo ""
 
@@ -58,9 +64,10 @@ echo ""
 # Optional tailing
 # ---------------------------------------
 if [[ "${1:-}" == "-f" ]]; then
-    echo "[*] Tail logs (Ctrl+C to exit)"
+    note "[*] Tail logs (Ctrl+C to exit)"
     journalctl -u "$SERVICE_NAME" -f
 else
-    echo "✅ Done!"
-    echo "➡ To follow logs:   journalctl -u $SERVICE_NAME -f"
+    say "Done ✅"
+    echo "➡ To follow logs:"
+    echo "   journalctl -u $SERVICE_NAME -f"
 fi
