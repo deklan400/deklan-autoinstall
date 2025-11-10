@@ -2,12 +2,20 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM — CLEAN UPDATE (STABLE v2)
+#   GENSYN RL-SWARM — CLEAN UPDATE (SMART v3)
 #   by Deklan & GPT-5
 ###########################################################################
 
 SERVICE_NAME="gensyn"
 RL_DIR="/root/rl_swarm"
+REPO_URL="https://github.com/gensyn-ai/rl-swarm"
+
+# flags:
+#   REBUILD=auto / ask / 0
+#   CLEAN=1 → remove old docker cache
+#
+# Example:
+#   REBUILD=auto CLEAN=1 bash update.sh
 
 GREEN="\e[32m"
 RED="\e[31m"
@@ -22,7 +30,7 @@ info() { echo -e "${CYAN}$1${NC}"; }
 
 echo -e "
 ${CYAN}=====================================================
-♻  UPDATE RL-SWARM (LIGHT)
+♻  UPDATE RL-SWARM — SMART v3
 =====================================================${NC}
 "
 
@@ -38,37 +46,71 @@ fi
 ###########################################################################
 # 1 — STOP SERVICE
 ###########################################################################
-info "[1/4] Stopping service..."
+info "[1/5] Stopping service..."
 systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || warn "Service not running"
 
 
 ###########################################################################
-# 2 — UPDATE REPO
+# 2 — VALIDATE REPO
 ###########################################################################
-info "[2/4] Updating RL-Swarm repo…"
+info "[2/5] Checking RL-Swarm folder..."
 
-if [[ -d "$RL_DIR/.git" ]]; then
-    pushd "$RL_DIR" >/dev/null
-    git reset --hard >/dev/null 2>&1 || true
-    git pull || warn "git pull failed — continuing"
-    popd >/dev/null
-    msg "Repo updated ✅"
+if [[ ! -d "$RL_DIR/.git" ]]; then
+    warn "Repo broken/missing → Re-cloning..."
+    rm -rf "$RL_DIR"
+    git clone "$REPO_URL" "$RL_DIR"
+    msg "Repo cloned ✅"
 else
-    err "RL-Swarm repo not found → $RL_DIR"
-    exit 1
+    msg "Repo OK"
 fi
 
 
 ###########################################################################
-# 3 — REBUILD DOCKER (optional)
+# 3 — UPDATE REPO
 ###########################################################################
+info "[3/5] Updating RL-Swarm repo..."
+
+pushd "$RL_DIR" >/dev/null
+
+# Safe update (always CLEAN)
+git fetch --all >/dev/null 2>&1 || true
+git reset --hard origin/main >/dev/null 2>&1 || warn "Hard reset failed"
+git pull || warn "git pull failed — continuing"
+
+popd >/dev/null
+
+msg "RL-Swarm updated ✅"
+
+
+###########################################################################
+# 4 — DOCKER BUILD
+###########################################################################
+# Detect compose
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE="docker-compose"
+else
+    err "docker compose not found"
+    exit 1
+fi
+
+msg "compose → $COMPOSE"
+
 REBUILD="${REBUILD:-ask}"
 
 do_rebuild() {
-    info "[3/4] Updating docker..."
+    info "[4/5] Updating docker..."
     pushd "$RL_DIR" >/dev/null
-    docker compose pull swarm-cpu || warn "pull failed"
-    docker compose build swarm-cpu || warn "build failed"
+
+    $COMPOSE pull swarm-cpu || warn "pull failed"
+    $COMPOSE build swarm-cpu || warn "build failed"
+
+    if [[ "${CLEAN:-0}" == "1" ]]; then
+        warn "Cleaning docker cache..."
+        docker system prune -af >/dev/null 2>&1 || true
+    fi
+
     popd >/dev/null
     msg "Docker updated ✅"
 }
@@ -84,12 +126,11 @@ fi
 
 
 ###########################################################################
-# 4 — START SERVICE
+# 5 — RESTART SERVICE
 ###########################################################################
-info "[4/4] Restarting service..."
+info "[5/5] Restarting service..."
 systemctl daemon-reload
 systemctl restart "$SERVICE_NAME" || true
-
 sleep 2
 
 if systemctl is-active --quiet "$SERVICE_NAME"; then
@@ -101,7 +142,6 @@ else
     journalctl -u "$SERVICE_NAME" -n 40 --no-pager
     exit 1
 fi
-
 
 msg "✅ UPDATE COMPLETE"
 echo ""
