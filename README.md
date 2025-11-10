@@ -3,9 +3,9 @@
 <div align="center">
 
 # 🌙🚀 GENSYN RL-SWARM  
-### ⚡ ONE-COMMAND AUTO INSTALLER
+### ⚡ ONE-COMMAND AUTO INSTALLER + SYSTEMD MANAGER
 
-> **Deploy RL-Swarm Node dalam 10 detik — aman, cepat, auto-management**  
+> **Deploy RL-Swarm Node hanya dalam 10 detik — aman, cepat, auto-management.**
 
 <img src="https://img.shields.io/badge/Gensyn-RL--Swarm-0a84ff?style=for-the-badge"/>
 <img src="https://img.shields.io/badge/Auto_Installer-00d18a?style=for-the-badge"/>
@@ -17,10 +17,10 @@
 ---
 
 <p align="center">
-<img width="85%" src="assets/dark-preview.png" />
+  <img width="85%" src="assets/dark-preview.png" />
 </p>
 
-> ✅ Jika preview belum muncul → upload screenshot ke folder:  
+> ✅ Jika screenshot belum muncul → upload file ke:  
 `/assets/dark-preview.png`
 
 ---
@@ -31,14 +31,28 @@
 ✔ Install dependencies  
 ✔ Install Docker  
 ✔ Clone RL-Swarm  
-✔ Link identity → `/keys/`  
+✔ Link identity → `/keys/` (symlink)  
+✔ Auto-create `.env`  
 ✔ Setup systemd service  
-✔ Auto-start + autorestart  
-✔ Bisa untuk multi server / migrasi VPS  
+✔ Auto-start + auto-restart  
+✔ Git auto-update on run  
+✔ Bisa multi VPS / migrasi cepat  
 
 ---
 
-## 📁 Persiapan Identity (WAJIB)
+## ✅ Requirement
+
+| Komponen | Status |
+|---------|--------|
+| Ubuntu 20 / 22 / 24 | ✅ |
+| RAM 2GB+ | ✅ |
+| Disk 10GB+ | ✅ |
+| Internet stabil | ✅ |
+| Identity lengkap (3 file) | ✅ |
+
+---
+
+## 📁 Identity (WAJIB)
 
 Siapkan **3 file** berikut:
 
@@ -46,29 +60,29 @@ Siapkan **3 file** berikut:
 |------|--------|
 | `swarm.pem` | Private key |
 | `userApiKey.json` | API Credential |
-| `userData.json` | User / Account Data |
+| `userData.json` | Account Data |
 
 Upload →  
 ```
 /root/deklan/
 ```
 
-Jika salah satu file hilang → installer otomatis berhenti ⚠️  
+Jika salah satu tidak ada → **installer otomatis berhenti** ⚠️  
 
 ---
 
 ## 🚀 Quick Install (1 Command)
 
-> Pastikan 3 identity sudah berada di:
+> Pastikan identity sudah ada di:
 > `/root/deklan/`
 
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
 ```
 
-✅ Node auto jalan  
+✅ Node langsung jalan  
 ✅ Auto restart enable  
-✅ No config needed  
+✅ Tanpa config manual  
 
 ---
 
@@ -83,7 +97,8 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 /root/rl_swarm/
 │── keys/   → symlink ke /root/deklan
 │── docker-compose.yaml
-└── source ...
+│── .env
+└── src ...
 ```
 
 Identity otomatis →  
@@ -93,14 +108,13 @@ Identity otomatis →
 
 ---
 
-## 📊 Cek Status Node
+## ✅ Status Node
 
-Status:
 ```bash
 systemctl status gensyn
 ```
 
-Log realtime:
+Real-time logs:
 ```bash
 journalctl -u gensyn -f
 ```
@@ -126,11 +140,18 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/update.sh)
 ```
 
+Modes:  
+| Mode | Fungsi |
+|------|--------|
+| Normal | update repo |
+| FAST | skip docker rebuild |
+| FULL | force docker rebuild |
+
 ---
 
 ## 🔁 Reinstall
 
-> 🟡 Tidak menghapus identity
+> ✅ Tidak menghapus identity
 
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/reinstall.sh)
@@ -146,6 +167,12 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/uninstall.sh)
 ```
 
+Opsional:
+```
+REMOVE_KEYS=1 bash uninstall.sh
+FULL_WIPE=1   bash uninstall.sh
+```
+
 ---
 
 ## ⚡ Lokasi Penting
@@ -156,15 +183,6 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 | Repo folder  | `/root/rl_swarm/` |
 | Keys folder  | `/root/rl_swarm/keys/` |
 | Identity folder | `/root/deklan/` |
-
----
-
-## 🧠 Notes
-
-✔ Bisa dipindah ke VPS lain  
-✔ Minimal potongan config  
-✔ Automatic update git saat node dijalankan  
-✔ Docker build otomatis  
 
 ---
 
@@ -179,25 +197,50 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 [6/9] Symlinking identity...
 [7/9] Preparing env...
 [8/9] Starting RL-Swarm...
-✅ DONE
+✅ DONE — NODE ACTIVE
 ```
-
-> Node berhasil berjalan ✅
 
 ---
 
 ## 🔐 Keamanan
 
-⚠ `swarm.pem` adalah private key  
-✅ Jangan disimpan online  
+⚠ `swarm.pem` = private key → **jangan upload online**  
 ✅ Simpan backup offline  
-✅ Installer **tidak kirim data ke server mana pun**  
+✅ Script **tidak kirim data kemanapun**  
+✅ Semua proses lokal  
+
+---
+
+## 🧯 Troubleshooting
+
+| Masalah | Solusi |
+|--------|--------|
+| Node mati | `systemctl restart gensyn` |
+| Tidak ada log | `journalctl -u gensyn -f` |
+| Identity error | Cek `/root/deklan/*` |
+| Repo rusak | `rm -rf /root/rl_swarm` + reinstall |
+| Docker error | `docker system prune -af` |
+
+---
+
+## 🌍 English Version
+
+✅ One-click RL-Swarm installer  
+✅ Auto systemd service  
+✅ Identity symlink  
+✅ Auto-restart  
+✅ Easy multi-server migration  
+
+Install:
+```bash
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
+```
 
 ---
 
 <div align="center">
 
 ### ✅ Built by **Deklan × GPT-5**  
-Dark • Clean • Minimal
+Dark • Fast • Clean
 
 </div>
