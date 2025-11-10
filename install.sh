@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM INSTALLER v3.1-smart
+#   GENSYN RL-SWARM INSTALLER v3.2-smart
 #   by Deklan & GPT-5
 ###########################################################################
 
@@ -17,7 +17,6 @@ RL_DIR="/root/rl_swarm"
 SERVICE_NAME="gensyn"
 SERVICE_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 AUTO_REPO="https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/"
-
 REPO_URL="https://github.com/gensyn-ai/rl-swarm"
 
 REQUIRED_FILES=("swarm.pem" "userData.json" "userApiKey.json")
@@ -29,13 +28,18 @@ info()  { echo -e "${CYAN}$1${NC}"; }
 
 echo -e "
 ${CYAN}=====================================================
-🔥  GENSYN RL-SWARM INSTALLER — v3.1 SMART
+🔥  GENSYN RL-SWARM INSTALLER — v3.2 SMART
 =====================================================${NC}
 "
 
 [[ $EUID -ne 0 ]] && err "Run as ROOT!" && exit 1
 
 STEP=1; step() { echo -e "${YELLOW}[$STEP] $1${NC}"; STEP=$((STEP+1)); }
+
+###########################################################################
+step "Check identity folder…"
+###########################################################################
+mkdir -p "$IDENTITY_DIR"
 
 ###########################################################################
 step "Checking identity files…"
@@ -52,6 +56,7 @@ done
 [[ $MISS == 1 ]] && err "Missing identity files → abort" && exit 1
 
 
+
 ###########################################################################
 step "Updating system…"
 ###########################################################################
@@ -59,11 +64,13 @@ apt update -y && apt upgrade -y
 msg "System updated ✅"
 
 
+
 ###########################################################################
 step "Installing dependencies…"
 ###########################################################################
 apt install -y curl git unzip build-essential pkg-config libssl-dev screen jq nano
 msg "Deps OK ✅"
+
 
 
 ###########################################################################
@@ -92,37 +99,40 @@ fi
 systemctl enable --now docker || true
 
 
+
 ###########################################################################
-step "Setup RL-Swarm repo…"
+step "Prepare RL-Swarm repo…"
 ###########################################################################
 if [[ ! -d "$RL_DIR" ]]; then
-    info "RL-Swarm not found → cloning…"
+    info "RL-Swarm missing → cloning…"
     git clone "$REPO_URL" "$RL_DIR"
-    msg "RL-Swarm cloned ✅"
+    msg "Cloned ✅"
 else
-    info "RL-Swarm exists → verifying…"
+    info "Repo exists → update"
     pushd "$RL_DIR" >/dev/null
     if git status >/dev/null 2>&1; then
-        msg "Git repo OK → running git pull…"
-        git pull || warn "git pull failed"
+        git fetch --all >/dev/null 2>&1 || true
+        git reset --hard origin/main >/dev/null 2>&1 || true
+        msg "Repo updated ✅"
     else
-        warn "RL-Swarm exists but NOT git repo → skipping update"
+        warn "Not git repo → skipping update"
     fi
     popd >/dev/null
-    msg "RL-Swarm repo verified ✅"
 fi
 
 
+
 ###########################################################################
-step "Link identity → /root/rl_swarm/keys"
+step "Create symlink keys"
 ###########################################################################
 rm -rf "$RL_DIR/keys" 2>/dev/null || true
 ln -s "$IDENTITY_DIR" "$RL_DIR/keys"
 msg "Symlink OK ✅"
 
 
+
 ###########################################################################
-step "Generate/validate .env…"
+step "Generate .env…"
 ###########################################################################
 if [[ ! -f "$RL_DIR/.env" ]]; then
     cat <<EOF > "$RL_DIR/.env"
@@ -131,12 +141,12 @@ PYTHONUNBUFFERED=1
 EOF
     msg ".env created ✅"
 else
-    msg ".env exists → using existing ✅"
+    msg ".env exists ✅"
 fi
 
 
 ###########################################################################
-step "Docker build/pull…"
+step "Docker pull/build…"
 ###########################################################################
 pushd "$RL_DIR" >/dev/null
 
@@ -146,26 +156,33 @@ else
     COMPOSE="docker-compose"
 fi
 
-$COMPOSE pull || warn "docker pull failed"
-$COMPOSE build swarm-cpu || warn "docker build failed"
+set +e
+$COMPOSE pull
+$COMPOSE build swarm-cpu
+set -e
 
 popd >/dev/null
 msg "Docker ready ✅"
 
 
+
 ###########################################################################
-step "Install gensyn.service…"
+step "Install service…"
 ###########################################################################
+systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+
 curl -s -o "$SERVICE_PATH" "${AUTO_REPO}gensyn.service"
 chmod 644 "$SERVICE_PATH"
 
 systemctl daemon-reload
 systemctl enable --now "$SERVICE_NAME"
-msg "gensyn.service installed & active ✅"
+
+msg "Service installed & active ✅"
+
 
 
 ###########################################################################
-step "DONE ✅"
+step "✅ DONE"
 ###########################################################################
 echo -e "
 ${GREEN}✅ INSTALL DONE!
