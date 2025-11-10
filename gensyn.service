@@ -1,0 +1,14 @@
+[Unit]
+Description=Gensyn RL-Swarm Node
+After=network.target docker.service
+
+[Service]
+User=root
+WorkingDirectory=/root/rl-swarm
+ExecStart=/bin/bash /root/rl-swarm/run_node.sh
+Restart=always
+RestartSec=10
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
