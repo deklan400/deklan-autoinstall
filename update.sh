@@ -33,9 +33,15 @@ systemctl stop "$SERVICE_NAME" 2>/dev/null || warn "Service not running"
 
 # update
 if [[ -d "$RL_DIR" ]]; then
-    info "Git pulling latest code..."
+    info "Updating code..."
     pushd "$RL_DIR" >/dev/null
-    sudo -u gensyn git pull
+
+    sudo -u gensyn git fetch --all
+    sudo -u gensyn git reset --hard origin/main || {
+        err "git update failed!"
+        exit 1
+    }
+
     popd >/dev/null
 else
     err "RL-Swarm directory missing → clone needed!"
@@ -44,10 +50,18 @@ fi
 
 # restart
 info "Restarting service..."
-systemctl daemon-reload
+systemctl daemon-reload || true
 systemctl start "$SERVICE_NAME"
 
 sleep 2
-systemctl status "$SERVICE_NAME" --no-pager || true
+
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+    msg "Node running ✅"
+else
+    err "Node still NOT running ❌"
+    echo ""
+    echo "Last logs:"
+    journalctl -u "$SERVICE_NAME" -n 40 --no-pager
+fi
 
 msg "✅ UPDATE COMPLETE"
