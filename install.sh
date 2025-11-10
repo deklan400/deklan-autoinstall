@@ -1,80 +1,150 @@
 #!/usr/bin/env bash
 set -e
 
-echo "=== Gensyn RL-Swarm Auto-Installer ==="
+####################################################################
+#   SETTINGS
+####################################################################
+IDENTITY_DIR="/root/deklan"
+REQUIRED_FILES=("swarm.pem" "userData.json" "userApiKey.json")
+RL_DIR="/home/gensyn/rl_swarm"
+KEYS_DIR="$RL_DIR/keys"
 
-# 1) Update system
-echo "[1/8] Updating system..."
+echo ""
+echo "====================================================="
+echo " 🔥 Gensyn RL-Swarm Auto-Installer"
+echo "====================================================="
+echo ""
+
+####################################################################
+#   CHECK IDENTITY FILES
+####################################################################
+echo "[1/9] Checking identity files..."
+mkdir -p "$IDENTITY_DIR"
+
+MISSING=0
+for FILE in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "$IDENTITY_DIR/$FILE" ]; then
+        echo "❌ Missing: $IDENTITY_DIR/$FILE"
+        MISSING=1
+    else
+        echo "✅ Found: $FILE"
+    fi
+done
+
+if [ "$MISSING" -eq 1 ]; then
+    echo ""
+    echo "⚠️  One or more identity files are missing."
+    echo "➡ Please put the following files inside: $IDENTITY_DIR"
+    echo ""
+    echo "Required:"
+    echo " - swarm.pem"
+    echo " - userData.json"
+    echo " - userApiKey.json"
+    echo ""
+    echo "Then rerun:"
+    echo "bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)"
+    exit 1
+fi
+
+
+####################################################################
+#   UPDATE SYSTEM
+####################################################################
+echo ""
+echo "[2/9] Updating system..."
 sudo apt update && sudo apt upgrade -y
 
-# 2) Install dependencies
-echo "[2/8] Installing dependencies..."
-sudo apt install -y \
-    curl git unzip build-essential pkg-config libssl-dev screen
 
-# 3) Install Docker
-echo "[3/8] Installing Docker..."
-sudo apt install -y ca-certificates curl gnupg
+####################################################################
+#   INSTALL DEPENDENCIES
+####################################################################
+echo ""
+echo "[3/9] Installing dependencies..."
+sudo apt install -y curl git unzip build-essential pkg-config libssl-dev screen
+
+
+####################################################################
+#   INSTALL DOCKER
+####################################################################
+echo ""
+echo "[4/9] Installing Docker..."
+
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
- | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
+| sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" |
-  sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/ubuntu \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+| sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-sudo apt update -y
-sudo apt install -y docker-ce docker-ce-cli containerd.io
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-echo "[3/8] Testing Docker..."
-sudo docker run --rm hello-world || true
 
-# 4) Clone rl-swarm
-echo "[4/8] Cloning rl-swarm repo..."
-if [ ! -d ~/rl-swarm ]; then
-    git clone https://github.com/gensyn-ai/rl-swarm ~/rl-swarm
+####################################################################
+#   CLONE rl-swarm
+####################################################################
+echo ""
+echo "[5/9] Cloning rl-swarm repo..."
+
+if [ ! -d "$RL_DIR" ]; then
+    sudo mkdir -p /home/gensyn
+    cd /home/gensyn
+    sudo git clone https://github.com/gensyn-ai/rl-swarm rl_swarm
 else
-    echo "Folder rl-swarm already exists — skipping"
+    echo "✅ rl_swsarm already exists → skip"
 fi
 
-# 5) Ensure swarm.pem exists
-echo "[5/8] Checking for swarm.pem..."
 
-if [ ! -f ~/rl-swarm/keys/swarm.pem ]; then
-    echo "⚠ swarm.pem not found!"
-    echo "Please upload it to: ~/rl-swarm/keys/swarm.pem"
-    mkdir -p ~/rl-swarm/keys
-else
-    echo "✅ swarm.pem detected."
-fi
+####################################################################
+#   COPY IDENTITY (PEM + API + DATA)
+####################################################################
+echo ""
+echo "[6/9] Copying identity files..."
 
-# 6) Download + copy gensyn.service
-echo "[6/8] Installing systemd service..."
+sudo mkdir -p "$KEYS_DIR"
+for FILE in "${REQUIRED_FILES[@]}"; do
+    sudo cp "$IDENTITY_DIR/$FILE" "$KEYS_DIR/$FILE"
+done
 
-curl -s \
- https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/gensyn.service \
- > /etc/systemd/system/gensyn.service
+chmod 600 "$KEYS_DIR/swarm.pem"
+
+echo "✅ Identity OK → copied to $KEYS_DIR"
+
+
+####################################################################
+#   INSTALL SYSTEMD SERVICE
+####################################################################
+echo ""
+echo "[7/9] Installing systemd service..."
+
+sudo curl -s -o /etc/systemd/system/gensyn.service \
+    https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/gensyn.service
 
 sudo systemctl daemon-reload
-sudo systemctl enable gensyn.service
+sudo systemctl enable --now gensyn
 
-# 7) Download run_node.sh
-echo "[7/8] Updating run_node.sh..."
 
-curl -s \
- https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/run_node.sh \
- > ~/rl-swarm/run_node.sh
+####################################################################
+#   START RL-SWARM
+####################################################################
+echo ""
+echo "[8/9] Starting RL-Swarm..."
 
-chmod +x ~/rl-swarm/run_node.sh
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/run_node.sh)
 
-# 8) Start service
-echo "[8/8] Starting Gensyn node..."
-sudo systemctl restart gensyn.service
-sleep 2
-sudo systemctl status gensyn.service --no-pager
 
-echo "✅ DONE — Gensyn RL-Swarm node installed!"
-echo "Pegang hidup bro 🔥"
+####################################################################
+#   FINISH
+####################################################################
+echo ""
+echo "====================================================="
+echo " ✅ INSTALLATION COMPLETE"
+echo "====================================================="
+echo ""
+systemctl status gensyn --no-pager
+echo ""
+echo "To view logs:"
+echo "journalctl -u gensyn -f"
