@@ -1,3 +1,4 @@
+cat << 'EOF' > /etc/systemd/system/gensyn.service
 [Unit]
 Description=Gensyn RL-Swarm Node
 After=network-online.target docker.service
@@ -8,21 +9,22 @@ StartLimitIntervalSec=30
 StartLimitBurst=10
 
 [Service]
-# Run under gensyn user (security)
-User=gensyn
-Group=gensyn
+# Run as root so correct permissions
+User=root
+Group=root
 
 # Working directory for node
-WorkingDirectory=/home/gensyn/rl_swarm
+WorkingDirectory=/root/rl_swarm
 
 # Load .env if exists
-EnvironmentFile=-/home/gensyn/rl_swarm/.env
+EnvironmentFile=-/root/rl_swarm/.env
 
 # Always unbuffered output
 Environment="PYTHONUNBUFFERED=1"
+Environment="GENSYN_KEY_DIR=/root/deklan"
 
 # Main launcher
-ExecStart=/bin/bash /home/gensyn/rl_swarm/run_node.sh
+ExecStart=/bin/bash /root/rl_swarm/run_node.sh
 
 # Auto-restart
 Restart=always
@@ -39,8 +41,8 @@ StandardOutput=journal
 StandardError=journal
 
 # Ensure docker is running
-# (helps if docker restarts)
 Requires=docker.service
 
 [Install]
 WantedBy=multi-user.target
+EOF
