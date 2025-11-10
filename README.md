@@ -1,64 +1,75 @@
-# ✅ Gensyn RL-Swarm — One-Command Auto Installer
+<!-- DARK MODE STYLED README -->
 
-Installer otomatis untuk menjalankan **Gensyn RL-Swarm Node** di VPS hanya dengan **1 perintah**.  
+<div align="center">
 
-Installer ini otomatis melakukan:
-✅ Validasi identity  
-✅ Install dependencies  
-✅ Install Docker  
-✅ Clone repo RL-Swarm  
-✅ Copy identity ke folder keys  
-✅ Setup systemd service  
-✅ Auto-start Node  
-✅ Aman & bisa dipindah VPS kapan pun  
+# 🌙🚀 GENSYN RL-SWARM  
+### ⚡ ONE-COMMAND AUTO INSTALLER
 
-Cocok untuk **deploy masal / pindah VPS sangat cepat 🚀**
+> **Deploy Gensyn Node dalam 10 detik — aman, simple, otomatis.**  
+
+<img src="https://img.shields.io/badge/Gensyn-RL--Swarm-0a84ff?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/Auto_Installer-00d18a?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/Systemd-AutoStart-fd8a09?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/Local_Identity-Safe-critical?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/Copy_And_Run-1_Step-lightgrey?style=for-the-badge"/>
+
+</div>
 
 ---
 
-## 📌 Persiapan (WAJIB)
+<p align="center">
+<img width="85%" src="https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/assets/dark-preview.png" />
+</p>
 
-Sebelum menjalankan installer, siapkan **3 file identity** berikut:
+> ✅ Jika preview belum ada → nanti tinggal upload screenshotnya ke folder `/assets/`
+
+---
+
+## ✅ Fitur Utama
+
+✔ Validasi identity  
+✔ Install dependencies  
+✔ Install Docker  
+✔ Clone RL-Swarm  
+✔ Copy identity → `/keys`  
+✔ Setup systemd service  
+✔ Auto-start & auto-restart  
+✔ Cocok deploy massal / pindah VPS  
+
+---
+
+## 📁 Persiapan Identity (WAJIB)
+
+Tambahkan **3 file** ini:
 
 | File | Fungsi |
 |------|--------|
 | `swarm.pem` | Private key |
-| `userApiKey.json` | API credential |
-| `userData.json` | Account data |
+| `userApiKey.json` | API Credential |
+| `userData.json` | Account Data |
 
-Upload ketiga file ke:
+📌 Upload ke:
 
 ```
 /root/deklan/
 ```
 
-📌 Folder `/root/deklan/` dibuat otomatis.  
-📌 Isi file **tidak diambil dari internet** → upload manual → lebih aman ✅  
-
-Jika salah satu file tidak ada → installer berhenti & minta upload dulu.
+Jika ada yg kurang → installer berhenti otomatis ⚠️  
 
 ---
 
 ## 🚀 Quick Install
 
-Jalankan perintah berikut di VPS:
-
-```bash
+```
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
 ```
 
-Installer akan:
-- Validasi identity
-- Install dependencies
-- Install Docker
-- Clone RL-Swarm
-- Copy keys
-- Install systemd
-- Start node otomatis
+> ✅ Node auto hidup  
+> ✅ Tidak perlu config manual  
 
 ---
 
-## ⚙️ Struktur Folder
+## 📂 Struktur Folder
 
 ```
 /root/deklan/
@@ -68,140 +79,138 @@ Installer akan:
 
 /home/gensyn/rl_swarm/
 │── keys/
-│     ├── swarm.pem
-│     ├── userApiKey.json
-│     └── userData.json
-└── (RL-Swarm source)
+│   ├── swarm.pem
+│   ├── userApiKey.json
+│   └── userData.json
+└── source ...
 ```
 
-Installer akan menyalin identity otomatis ke:
+Identity otomatis →  
 ```
 /home/gensyn/rl_swarm/keys/
 ```
 
 ---
 
-## ▶ Cek Status Node
+## 📊 Cek Node
 
-```bash
+```
 systemctl status gensyn
 ```
 
-Melihat log live:
-
-```bash
+Log realtime:
+```
 journalctl -u gensyn -f
 ```
 
 ---
 
-## 🔄 Restart Node
+## 🔁 Restart Node
 
-```bash
-bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/restart.sh)
 ```
-
-Atau:
-
-```bash
 systemctl restart gensyn
 ```
 
----
-
-## 🔢 Informasi Service
-
-| File | Lokasi |
-|------|--------|
-| Service | `/etc/systemd/system/gensyn.service` |
-| Directory | `/home/gensyn/rl_swarm/` |
-| Keys | `/home/gensyn/rl_swarm/keys/` |
+Atau:
+```
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/restart.sh)
+```
 
 ---
 
-## ⚙ Systemd Service (Auto-Start)
+## 📌 Lokasi Penting
 
-Service akan auto-restart jika:
-- VPS restart
-- Node crash
-- Node stop mendadak
+| Resource | Path |
+|----------|------|
+| Service file | `/etc/systemd/system/gensyn.service` |
+| Repo folder  | `/home/gensyn/rl_swarm/` |
+| Keys folder  | `/home/gensyn/rl_swarm/keys/` |
 
-Manual stop:
+---
 
-```bash
+## 🔄 Auto-Restart
+
+Node auto restart ketika:
+✅ VPS reboot  
+✅ Node crash  
+✅ Node mati mendadak  
+
+Stop:
+```
 systemctl stop gensyn
 ```
 
-Disable permanent:
-
-```bash
+Disable:
+```
 systemctl disable gensyn
 ```
 
 ---
 
-## ✅ run_node.sh
+## ⚡ Worker Script → `run_node.sh`
 
-Script dipanggil oleh service systemd & memastikan docker compose selalu dijalankan.
+Dijalanin via systemd → pastikan docker compose selalu aktif.
 
 ---
 
-## 📦 Re-Install (Fast-Move VPS)
+## 📦 Re-Install / Move VPS
 
-Cukup copy identity:
-
+1) Copy identity:
 ```
 /root/deklan/
 ```
 
-Kemudian jalankan:
-
-```bash
+2) Run:
+```
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
 ```
 
-→ Node langsung jalan!  
-Tidak perlu isi apapun lagi ✅  
+> ✅ Langsung running  
+> ✅ Tidak perlu input ulang  
 
 ---
 
 ## ❌ Uninstall
 
-```bash
+```
 systemctl stop gensyn
 systemctl disable gensyn
 rm /etc/systemd/system/gensyn.service
 rm -rf /home/gensyn/rl_swarm
+systemctl daemon-reload
 ```
 
 ---
 
-## ✅ Output Contoh
+## ✅ Contoh Output
 
 ```
-[1/9] Checking identity files... ✅
+[1/9] Checking identity... ✅
 [2/9] Updating system...
 [3/9] Installing dependencies...
 [4/9] Installing Docker...
-[5/9] Cloning rl-swarm repo...
-[6/9] Copying identity files...
-[7/9] Installing systemd service...
+[5/9] Cloning RL-Swarm...
+[6/9] Copying identity...
+[7/9] Installing systemd...
 [8/9] Starting RL-Swarm...
 ```
 
-Lalu node otomatis berjalan 🎉
+> ✔ Node berjalan sukses!
 
 ---
 
-## ⚠ Catatan Keamanan
+## 🔐 Keamanan
 
-❗ Jangan upload `swarm.pem` ke GitHub / internet  
-❗ Backup offline aman  
-✅ Installer tidak mengirim ke server manapun  
+⚠ Jangan upload `swarm.pem` ke internet  
+✅ Backup offline  
+✅ Installer tidak kirim data ke server manapun  
 
 ---
 
-## ❤️ Credit
-Built by **Deklan**
+<div align="center">
 
-END OF README
+### ❤️ Built by **Deklan × GPT-5**
+#### Dark-theme • Clean • Auto-Deploy
+
+</div>
+
