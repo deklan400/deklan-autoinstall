@@ -21,7 +21,7 @@
 <img width="85%" src="https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/assets/dark-preview.png" />
 </p>
 
-> ✅ Jika preview belum ada → nanti tinggal upload screenshotnya ke folder `/assets/`
+> ✅ Jika preview belum ada → upload screenshot ke folder `/assets/`
 
 ---
 
@@ -60,12 +60,14 @@ Jika ada yg kurang → installer berhenti otomatis ⚠️
 
 ## 🚀 Quick Install
 
+> Jalankan script installer otomatis
+
 ```
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
 ```
 
-> ✅ Node auto hidup  
-> ✅ Tidak perlu config manual  
+✅ Node auto hidup  
+✅ Tidak perlu config manual  
 
 ---
 
@@ -77,7 +79,7 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 │── userApiKey.json
 └── userData.json
 
-/home/gensyn/rl_swarm/
+/root/rl_swarm/
 │── keys/
 │   ├── swarm.pem
 │   ├── userApiKey.json
@@ -87,13 +89,14 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 
 Identity otomatis →  
 ```
-/home/gensyn/rl_swarm/keys/
+/root/rl_swarm/keys/
 ```
 
 ---
 
-## 📊 Cek Node
+## 📊 Cek Status Node
 
+Status:
 ```
 systemctl status gensyn
 ```
@@ -123,8 +126,8 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 | Resource | Path |
 |----------|------|
 | Service file | `/etc/systemd/system/gensyn.service` |
-| Repo folder  | `/home/gensyn/rl_swarm/` |
-| Keys folder  | `/home/gensyn/rl_swarm/keys/` |
+| Repo folder  | `/root/rl_swarm/` |
+| Keys folder  | `/root/rl_swarm/keys/` |
 
 ---
 
@@ -149,11 +152,11 @@ systemctl disable gensyn
 
 ## ⚡ Worker Script → `run_node.sh`
 
-Dijalanin via systemd → pastikan docker compose selalu aktif.
+Dijalankan via systemd → pastikan docker compose aktif.
 
 ---
 
-## 📦 Re-Install / Move VPS
+## 📦 Re-Install / Pindah VPS
 
 1) Copy identity:
 ```
@@ -165,8 +168,8 @@ Dijalanin via systemd → pastikan docker compose selalu aktif.
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
 ```
 
-> ✅ Langsung running  
-> ✅ Tidak perlu input ulang  
+✅ Langsung running  
+✅ Tidak perlu input ulang  
 
 ---
 
@@ -176,7 +179,7 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 systemctl stop gensyn
 systemctl disable gensyn
 rm /etc/systemd/system/gensyn.service
-rm -rf /home/gensyn/rl_swarm
+rm -rf /root/rl_swarm
 systemctl daemon-reload
 ```
 
@@ -190,9 +193,10 @@ systemctl daemon-reload
 [3/9] Installing dependencies...
 [4/9] Installing Docker...
 [5/9] Cloning RL-Swarm...
-[6/9] Copying identity...
-[7/9] Installing systemd...
+[6/9] Symlinking identity...
+[7/9] Preparing env...
 [8/9] Starting RL-Swarm...
+✅ DONE
 ```
 
 > ✔ Node berjalan sukses!
@@ -203,14 +207,13 @@ systemctl daemon-reload
 
 ⚠ Jangan upload `swarm.pem` ke internet  
 ✅ Backup offline  
-✅ Installer tidak kirim data ke server manapun  
+✅ Installer **tidak kirim data ke server manapun**  
 
 ---
 
 <div align="center">
 
 ### ❤️ Built by **Deklan × GPT-5**
-#### Dark-theme • Clean • Auto-Deploy
+Dark-theme • Clean • Auto-Deploy
 
 </div>
-
