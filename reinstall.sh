@@ -1,115 +1,64 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
+
+###########################################################################
+#   GENSYN RL-SWARM — REINSTALL
+#   by Deklan & GPT-5
+###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/home/gensyn/rl_swarm"
+RL_HOME="/home/gensyn"
+RL_DIR="$RL_HOME/rl_swarm"
 IDENTITY_DIR="/root/deklan"
 KEYS_DIR="$RL_DIR/keys"
-REPO_URL="https://github.com/gensyn-ai/rl-swarm"
 
-echo ""
-echo "====================================================="
-echo " 🔁 Reinstall Gensyn RL-Swarm"
-echo "====================================================="
-echo ""
+GREEN="\e[32m"
+RED="\e[31m"
+YELLOW="\e[33m"
+CYAN="\e[36m"
+NC="\e[0m"
 
-##################################################################
-# 1) STOP + DISABLE SERVICE
-##################################################################
-echo "[1/7] Stopping systemd service..."
+msg()   { echo -e "${GREEN}✅ $1${NC}"; }
+warn()  { echo -e "${YELLOW}⚠️ $1${NC}"; }
+err()   { echo -e "${RED}❌ $1${NC}"; }
+info()  { echo -e "${CYAN}$1${NC}"; }
 
-systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+echo -e "
+${CYAN}=====================================================
+🔁  REINSTALL RL-SWARM NODE
+=====================================================${NC}
+"
 
-rm -f "/etc/systemd/system/$SERVICE_NAME.service"
-systemctl daemon-reload
-echo "✅ Systemd disabled"
-echo ""
+# stop
+info "Stopping service..."
+systemctl stop "$SERVICE_NAME" || true
 
-##################################################################
-# 2) DELETE OLD RL-SWARM
-##################################################################
-echo "[2/7] Removing old rl-swarm directory..."
-
+# pull
 if [[ -d "$RL_DIR" ]]; then
-    rm -rf "$RL_DIR"
-    echo "✅ Removed old rl-swarm"
+    info "Git pull code..."
+    pushd "$RL_DIR" >/dev/null
+    sudo -u gensyn git pull
+    popd >/dev/null
 else
-    echo "ℹ️  No existing rl-swarm found"
-fi
-echo ""
-
-##################################################################
-# 3) CHECK IDENTITY FILES
-##################################################################
-echo "[3/7] Checking identity files..."
-
-REQUIRED=("swarm.pem" "userApiKey.json" "userData.json")
-for f in "${REQUIRED[@]}"; do
-    if [[ ! -f "$IDENTITY_DIR/$f" ]]; then
-        echo "❌ Missing: $IDENTITY_DIR/$f"
-        MISSING=1
-    else
-        echo "✅ Found: $f"
-    fi
-done
-
-if [[ "${MISSING:-0}" -eq 1 ]]; then
-    echo ""
-    echo "⚠️  Missing identity files!"
-    echo "➡ Copy them to: $IDENTITY_DIR"
-    exit 1
+    err "RL-Swarm not found → cloning repo..."
+    sudo -u gensyn git clone https://github.com/gensyn-ai/rl-swarm "$RL_DIR"
 fi
 
-echo "✅ Identity OK"
-echo ""
-
-##################################################################
-# 4) CLONE RL-SWARM
-##################################################################
-echo "[4/7] Cloning rl-swarm repo..."
-
-mkdir -p /home/gensyn
-cd /home/gensyn
-git clone "$REPO_URL" rl_swarm
-
-echo "✅ Cloned"
-echo ""
-
-##################################################################
-# 5) COPY KEYS
-##################################################################
-echo "[5/7] Copying identity to keys..."
-
+# copy ident
+info "Copying identity..."
 mkdir -p "$KEYS_DIR"
-for f in "${REQUIRED[@]}"; do
-    cp "$IDENTITY_DIR/$f" "$KEYS_DIR/$f"
-done
+cp "$IDENTITY_DIR"/swarm.pem "$KEYS_DIR"/swarm.pem || true
+cp "$IDENTITY_DIR"/userData.json "$KEYS_DIR"/userData.json || true
+cp "$IDENTITY_DIR"/userApiKey.json "$KEYS_DIR"/userApiKey.json || true
 chmod 600 "$KEYS_DIR/swarm.pem"
+chown -R gensyn:gensyn "$KEYS_DIR"
 
-echo "✅ Identity copied to $KEYS_DIR"
-echo ""
-
-##################################################################
-# 6) INSTALL SYSTEMD
-##################################################################
-echo "[6/7] Installing gensyn.service..."
-
-curl -s -o /etc/systemd/system/gensyn.service \
-    https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/gensyn.service
-
+# restart
+info "Starting service..."
 systemctl daemon-reload
-systemctl enable --now gensyn
-echo "✅ Service enabled"
-echo ""
+systemctl restart "$SERVICE_NAME"
 
-##################################################################
-# 7) CHECK STATUS
-##################################################################
-echo "[7/7] ✅ Done"
+sleep 2
+systemctl status "$SERVICE_NAME" --no-pager || true
 
-systemctl status gensyn --no-pager || true
-echo ""
-echo "Logs:"
-echo "journalctl -u gensyn -f"
-echo ""
+msg "✅ REINSTALL COMPLETE"
