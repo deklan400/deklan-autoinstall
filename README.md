@@ -1,205 +1,207 @@
-# 🤖 Deklan Node Bot — Telegram Control & Monitoring
+# ✅ Gensyn RL-Swarm — One-Command Auto Installer
 
-Bot Telegram untuk monitoring & mengendalikan **Gensyn RL-Swarm Node** langsung dari HP 📱  
-Tanpa repot login server! Full otomatis.  
+Installer otomatis untuk menjalankan **Gensyn RL-Swarm Node** di VPS hanya dengan **1 perintah**.  
 
----
+Installer ini otomatis melakukan:
+✅ Validasi identity  
+✅ Install dependencies  
+✅ Install Docker  
+✅ Clone repo RL-Swarm  
+✅ Copy identity ke folder keys  
+✅ Setup systemd service  
+✅ Auto-start Node  
+✅ Aman & bisa dipindah VPS kapan pun  
 
-## ✨ Fitur Utama
-
-✅ Cek status CPU / RAM / Disk / Uptime  
-✅ Start / Stop / Restart Node  
-✅ Lihat Logs  
-✅ Cek Round terbaru  
-✅ Akses aman (ALLOWLIST)  
-✅ Auto-monitor tiap X menit  
-✅ systemd background service  
-✅ Menu tombol Telegram  
+Cocok untuk **deploy masal / pindah VPS sangat cepat 🚀**
 
 ---
 
-## 🚀 1) Instalasi Cepat
+## 📌 Persiapan (WAJIB)
 
-> Jalankan perintah ini:
+Sebelum menjalankan installer, siapkan **3 file identity** berikut:
 
-```bash
-bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-node-bot/main/install.sh)
-```
-
-Bot otomatis:
-✅ Install dependensi  
-✅ Setup folder  
-✅ Install service  
-✅ Auto-start  
-
----
-
-## ⚙️ 2) Konfigurasi
-
-Buka file konfigurasi:
-
-```bash
-nano /opt/deklan-node-bot/.env
-```
-
-Contoh isi:
-
-```
-BOT_TOKEN=123456:abcdefgxxxxxxxx
-CHAT_ID=12345678
-ALLOWED_USER_IDS=123456,987654
-NODE_NAME=Gensyn-01
-MONITOR_INTERVAL=10
-```
-
-| Key | Fungsi |
-|-----|--------|
-| BOT_TOKEN | Token Telegram Bot |
-| CHAT_ID | ID Admin |
-| ALLOWED_USER_IDS | (opsional) daftar user |
-| NODE_NAME | Nama node |
-| MONITOR_INTERVAL | Cek otomatis (menit) |
-
-> Minimal wajib: **BOT_TOKEN + CHAT_ID**
-
----
-
-## 🏃 3) Jalankan / Cek Status
-
-Cek status bot:
-
-```bash
-systemctl status bot
-```
-
-Restart bot:
-
-```bash
-systemctl restart bot
-```
-
-Monitoring timer:
-
-```bash
-systemctl start monitor.timer
-```
-
-Cek timer:
-
-```bash
-systemctl status monitor.timer
-```
-
-Jalankan monitor manual:
-
-```bash
-systemctl start monitor.service
-```
-
----
-
-## 💬 4) Telegram Commands
-
-Ketik:
-
-```
-/start
-```
-
-→ Bot akan tampilkan menu tombol ✅  
-
-### Aksi:
-
-| Menu | Fungsi |
+| File | Fungsi |
 |------|--------|
-| ✅ Status | Info CPU / RAM / Disk / Up |
-| ▶ Start | Start node |
-| ⏹ Stop | Stop node |
-| 🔄 Restart | Restart node |
-| 📜 Logs | Tampilkan logs |
-| 🔢 Round | Round terbaru |
+| `swarm.pem` | Private key |
+| `userApiKey.json` | API credential |
+| `userData.json` | Account data |
+
+Upload ketiga file ke:
+
+```
+/root/deklan/
+```
+
+📌 Folder `/root/deklan/` dibuat otomatis.  
+📌 Isi file **tidak diambil dari internet** → upload manual → lebih aman ✅  
+
+Jika salah satu file tidak ada → installer berhenti & minta upload dulu.
 
 ---
 
-## 📁 5) Lokasi File Penting
+## 🚀 Quick Install
 
-| Lokasi | Fungsi |
-|--------|--------|
-| `/opt/deklan-node-bot/` | Folder bot |
-| `bot.py` | Main bot |
-| `.env` | Config |
-| `bot.service` | systemd bot |
-| `monitor.*` | Monitoring service |
+Jalankan perintah berikut di VPS:
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
+```
+
+Installer akan:
+- Validasi identity
+- Install dependencies
+- Install Docker
+- Clone RL-Swarm
+- Copy keys
+- Install systemd
+- Start node otomatis
 
 ---
 
-## ⏱ 6) Auto Monitoring
+## ⚙️ Struktur Folder
 
-✅ Tiap X menit bot cek:
-- Node berjalan atau mati
-- Round naik / macet
+```
+/root/deklan/
+│── swarm.pem
+│── userApiKey.json
+└── userData.json
 
-Bila ada masalah = **notif Telegram otomatis** ✅  
+/home/gensyn/rl_swarm/
+│── keys/
+│     ├── swarm.pem
+│     ├── userApiKey.json
+│     └── userData.json
+└── (RL-Swarm source)
+```
+
+Installer akan menyalin identity otomatis ke:
+```
+/home/gensyn/rl_swarm/keys/
+```
+
+---
+
+## ▶ Cek Status Node
+
+```bash
+systemctl status gensyn
+```
+
+Melihat log live:
+
+```bash
+journalctl -u gensyn -f
+```
+
+---
+
+## 🔄 Restart Node
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/restart.sh)
+```
+
+Atau:
+
+```bash
+systemctl restart gensyn
+```
+
+---
+
+## 🔢 Informasi Service
+
+| File | Lokasi |
+|------|--------|
+| Service | `/etc/systemd/system/gensyn.service` |
+| Directory | `/home/gensyn/rl_swarm/` |
+| Keys | `/home/gensyn/rl_swarm/keys/` |
+
+---
+
+## ⚙ Systemd Service (Auto-Start)
+
+Service akan auto-restart jika:
+- VPS restart
+- Node crash
+- Node stop mendadak
+
+Manual stop:
+
+```bash
+systemctl stop gensyn
+```
+
+Disable permanent:
+
+```bash
+systemctl disable gensyn
+```
+
+---
+
+## ✅ run_node.sh
+
+Script dipanggil oleh service systemd & memastikan docker compose selalu dijalankan.
+
+---
+
+## 📦 Re-Install (Fast-Move VPS)
+
+Cukup copy identity:
+
+```
+/root/deklan/
+```
+
+Kemudian jalankan:
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
+```
+
+→ Node langsung jalan!  
+Tidak perlu isi apapun lagi ✅  
 
 ---
 
 ## ❌ Uninstall
 
-```
-systemctl stop bot monitor.service monitor.timer
-systemctl disable bot monitor.service monitor.timer
-rm /etc/systemd/system/bot.service
-rm /etc/systemd/system/monitor.*
-rm -rf /opt/deklan-node-bot
-```
-
----
-
-## 🧩 Struktur Repo
-
-```
-deklan-node-bot
-│── bot.py
-│── install.sh
-│── requirements.txt
-│── .env.example
-└── bot.service
+```bash
+systemctl stop gensyn
+systemctl disable gensyn
+rm /etc/systemd/system/gensyn.service
+rm -rf /home/gensyn/rl_swarm
 ```
 
 ---
 
-## 📡 Contoh Output Telegram
+## ✅ Output Contoh
 
 ```
-🟢 NODE RUNNING
-CPU: 35%
-RAM: 62%
-Disk: 70%
-Uptime: 12h 21m
-Round: 18735
+[1/9] Checking identity files... ✅
+[2/9] Updating system...
+[3/9] Installing dependencies...
+[4/9] Installing Docker...
+[5/9] Cloning rl-swarm repo...
+[6/9] Copying identity files...
+[7/9] Installing systemd service...
+[8/9] Starting RL-Swarm...
 ```
 
-atau:
-
-```
-🔴 NODE STOPPED
-Last Round: 18735
-```
+Lalu node otomatis berjalan 🎉
 
 ---
 
-## 🛣 Roadmap
+## ⚠ Catatan Keamanan
 
-- Multi-node
-- Web UI
-- Cluster manager
-- Auto-update
-- Auto backup
+❗ Jangan upload `swarm.pem` ke GitHub / internet  
+❗ Backup offline aman  
+✅ Installer tidak mengirim ke server manapun  
 
 ---
 
-## ❤️ Credits
-
-Built with ❤️ by **Deklan**
+## ❤️ Credit
+Built by **Deklan**
 
 END OF README
