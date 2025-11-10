@@ -1,4 +1,3 @@
-cat << 'EOF' > /etc/systemd/system/gensyn.service
 [Unit]
 Description=Gensyn RL-Swarm Node
 After=network-online.target docker.service
@@ -46,4 +45,3 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-EOF
