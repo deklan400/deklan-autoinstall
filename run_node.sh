@@ -2,14 +2,13 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM STARTER (SMART v3)
+#   GENSYN RL-SWARM STARTER (SMART v3.4)
 #   by Deklan & GPT-5
 ###########################################################################
 
 # ===== CONFIG =====
 RL_DIR="/root/rl_swarm"
 KEY_DIR="/root/deklan"
-LOG_DIR="$RL_DIR/logs"
 MODEL="${MODEL_NAME:-}"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm"
 
@@ -47,7 +46,7 @@ IDENTITY : $KEY_DIR
 #   INTERNET CHECK
 ###########################################################################
 note "[*] Checking internet…"
-if ! ping -c1 github.com >/dev/null 2>&1; then
+if ! ping -c1 -W1 github.com >/dev/null 2>&1; then
     warn "Internet weak / unreachable → continue anyway"
 else
     say "Internet OK"
@@ -64,40 +63,6 @@ if [[ ! -d "$RL_DIR" ]]; then
 fi
 
 cd "$RL_DIR" || fail "RL-Swarm folder not found"
-
-
-###########################################################################
-#   KEY CHECK
-###########################################################################
-REQ=("swarm.pem" "userApiKey.json" "userData.json")
-
-for f in "${REQ[@]}"; do
-    if [[ ! -f "$KEY_DIR/$f" ]]; then
-        fail "Missing identity → $KEY_DIR/$f"
-    fi
-done
-
-say "Identity OK ✅"
-
-# Symlink ensure
-if [[ ! -e "$RL_DIR/keys" ]]; then
-    ln -s "$KEY_DIR" "$RL_DIR/keys"
-    say "Symlink created ✅"
-fi
-
-
-###########################################################################
-#   .env CHECK
-###########################################################################
-if [[ ! -f "$RL_DIR/.env" ]]; then
-cat <<EOF > "$RL_DIR/.env"
-GENSYN_KEY_DIR=$KEY_DIR
-PYTHONUNBUFFERED=1
-EOF
-    say ".env created ✅"
-else
-    note ".env exists"
-fi
 
 
 ###########################################################################
@@ -132,6 +97,50 @@ fi
 
 
 ###########################################################################
+#   KEY CHECK
+###########################################################################
+REQ=("swarm.pem" "userApiKey.json" "userData.json")
+
+for f in "${REQ[@]}"; do
+    [[ ! -f "$KEY_DIR/$f" ]] && fail "Missing identity → $KEY_DIR/$f"
+done
+say "Identity OK ✅"
+
+
+###########################################################################
+#   Symlink ensure
+###########################################################################
+if [[ -L "$RL_DIR/keys" ]] || [[ -e "$RL_DIR/keys" ]]; then
+    rm -rf "$RL_DIR/keys"
+fi
+
+ln -s "$KEY_DIR" "$RL_DIR/keys"
+say "Symlink created ✅"
+
+
+###########################################################################
+#   .env CHECK
+###########################################################################
+if [[ ! -f "$RL_DIR/.env" ]]; then
+cat <<EOF > "$RL_DIR/.env"
+GENSYN_KEY_DIR=$KEY_DIR
+PYTHONUNBUFFERED=1
+EOF
+    say ".env created ✅"
+else
+    note ".env exists"
+fi
+
+
+###########################################################################
+#   docker alive?
+###########################################################################
+if ! docker info >/dev/null 2>&1; then
+    fail "Docker daemon NOT running"
+fi
+
+
+###########################################################################
 #   CLEAN ZOMBIE
 ###########################################################################
 note "[*] Cleanup dead containers…"
@@ -156,7 +165,6 @@ note "[*] Starting swarm-cpu…"
 EXTRA=""
 [[ -n "$MODEL" ]] && EXTRA="--env MODEL_NAME=$MODEL"
 
-# Cleanup stuck old name
 docker rm -f swarm-cpu-run >/dev/null 2>&1 || true
 
 exec $COMPOSE_CMD run --rm -P -it \
