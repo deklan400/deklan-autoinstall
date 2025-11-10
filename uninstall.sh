@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM — CLEAN UNINSTALL (SMART v3)
+#   GENSYN RL-SWARM — CLEAN UNINSTALL (SMART v3.4)
 #   by Deklan & GPT-5
 ###########################################################################
 
@@ -31,19 +31,17 @@ ${CYAN}=====================================================
 =====================================================${NC}
 "
 
+
 ###########################################################################
 # 0 — ROOT CHECK
 ###########################################################################
-if [[ $EUID -ne 0 ]]; then
-    err "Run as ROOT!"
-    exit 1
-fi
+[[ $EUID -ne 0 ]] && err "Run as ROOT!" && exit 1
 
 
 ###########################################################################
-# 1 — Stop + remove systemd service
+# 1 — Stop & remove systemd
 ###########################################################################
-info "[1/7] Removing Node systemd service…"
+info "[1/8] Removing node service…"
 
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 systemctl disable "$SERVICE_NAME" 2>/dev/null || true
@@ -56,7 +54,7 @@ msg "Node service removed ✅"
 ###########################################################################
 # 2 — Remove RL-Swarm directory
 ###########################################################################
-info "[2/7] Removing RL-Swarm directory…"
+info "[2/8] Removing RL-Swarm folder…"
 
 if [[ -d "$RL_DIR" ]]; then
     rm -rf "$RL_DIR"
@@ -67,41 +65,59 @@ fi
 
 
 ###########################################################################
-# 3 — Remove identity keys (OPTIONAL)
+# 3 — Remove identity (OPTIONAL)
 ###########################################################################
-info "[3/7] Identity folder → $KEY_DIR"
+info "[3/8] Identity folder → $KEY_DIR"
 
 if [[ "$REMOVE_KEYS" == "1" ]]; then
     if [[ -d "$KEY_DIR" ]]; then
         rm -rf "$KEY_DIR"
-        msg "Keys removed ✅"
+        msg "Identity removed ✅"
     else
-        warn "Keys missing → skip"
+        warn "Identity missing → skip"
     fi
 else
-    warn "Keys retained (set REMOVE_KEYS=1 to auto-remove)"
+    warn "Identity retained (set REMOVE_KEYS=1 to remove)"
 fi
 
 
 ###########################################################################
-# 4 — Docker cleanup (containers + images)
+# 4 — Docker cleanup
 ###########################################################################
-info "[4/7] Cleaning docker artifacts…"
+info "[4/8] Cleaning docker…"
 
-docker ps -a --filter "name=swarm-cpu" -q \
-    | xargs -r docker rm -f >/dev/null 2>&1 || true
+if command -v docker >/dev/null 2>&1; then
 
-docker images \
-    | grep "swarm-cpu" | awk '{print $3}' \
-    | xargs -r docker rmi -f >/dev/null 2>&1 || true
+    # stop & remove swarm containers
+    docker ps -a --filter "name=swarm-cpu" -q \
+        | xargs -r docker rm -f >/dev/null 2>&1 || true
 
-msg "Docker cleanup OK ✅"
+    # remove images
+    docker images | grep "swarm-cpu" | awk '{print $3}' \
+        | xargs -r docker rmi -f >/dev/null 2>&1 || true
+
+    # orphan networks
+    docker network prune -f >/dev/null 2>&1 || true
+
+    msg "Docker cleanup OK ✅"
+else
+    warn "Docker not installed → skip"
+fi
 
 
 ###########################################################################
-# 5 — OPTION: Remove Deklan Telegram Bot
+# 5 — Remove RL-Swarm symlink
 ###########################################################################
-info "[5/7] Checking bot…"
+info "[5/8] Removing symlink…"
+
+rm -f "$RL_DIR/keys" 2>/dev/null || true
+msg "Symlink cleaned ✅"
+
+
+###########################################################################
+# 6 — Remove Telegram BOT (optional)
+###########################################################################
+info "[6/8] Checking bot…"
 
 if [[ "$FULL_WIPE" == "1" ]]; then
     systemctl stop bot 2>/dev/null || true
@@ -114,23 +130,27 @@ if [[ "$FULL_WIPE" == "1" ]]; then
 
     systemctl daemon-reload
 
-    rm -rf "$BOT_DIR"
-    msg "Bot + monitor removed ✅"
+    rm -rf "$BOT_DIR" 2>/dev/null || true
+    rm -rf /tmp/.node_status.json 2>/dev/null || true
+
+    msg "Bot + Monitor removed ✅"
 else
     warn "Bot retained (set FULL_WIPE=1 to wipe bot)"
 fi
 
 
+
 ###########################################################################
-# 6 — Remove RL-Swarm symlink
+# 7 — OPTIONAL: remove .env
 ###########################################################################
-info "[6/7] Cleaning symlink…"
-rm -f "$RL_DIR/keys" 2>/dev/null || true
-msg "Symlink OK ✅"
+info "[7/8] Cleaning .env…"
+
+rm -f "$RL_DIR/.env" 2>/dev/null || true
+msg ".env removed ✅"
 
 
 ###########################################################################
-# 7 — Final Result
+# 8 — FINAL
 ###########################################################################
 echo -e "
 ${GREEN}=====================================================
@@ -138,12 +158,12 @@ ${GREEN}=====================================================
 =====================================================
 
 ✔ Node service removed
-✔ RL-Swarm directory removed
+✔ RL-Swarm folder removed
 ✔ Docker cleaned
+✔ Symlink removed
 ✔ Keys kept (unless REMOVE_KEYS=1)
 ✔ Bot kept (unless FULL_WIPE=1)
 
 =====================================================
 ${NC}
 "
-
