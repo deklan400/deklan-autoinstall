@@ -4,43 +4,30 @@ Description=Gensyn RL-Swarm Node
 After=network-online.target docker.service
 Wants=network-online.target docker.service
 
-# Restart aggressively if failing
 StartLimitIntervalSec=30
 StartLimitBurst=10
 
 [Service]
-# Run as root so correct permissions
 User=root
 Group=root
 
-# Working directory for node
 WorkingDirectory=/root/rl_swarm
 
-# Load .env if exists
 EnvironmentFile=-/root/rl_swarm/.env
-
-# Always unbuffered output
 Environment="PYTHONUNBUFFERED=1"
 Environment="GENSYN_KEY_DIR=/root/deklan"
 
-# Main launcher
 ExecStart=/bin/bash /root/rl_swarm/run_node.sh
 
-# Auto-restart
 Restart=always
 RestartSec=5
-
-# Never kill full systemd cgroup
 KillMode=process
 
-# Improve file handles
 LimitNOFILE=65535
 
-# Logging
 StandardOutput=journal
 StandardError=journal
 
-# Ensure docker is running
 Requires=docker.service
 
 [Install]
