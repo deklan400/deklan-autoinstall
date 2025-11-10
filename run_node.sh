@@ -2,100 +2,102 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM STARTER
+#   GENSYN RL-SWARM STARTER (FIXED)
 #   by Deklan & GPT-5
 ###########################################################################
 
-RL_DIR="/home/gensyn/rl_swarm"
+# ===== CONFIG =====
+RL_DIR="/root/rl_swarm"
+KEY_DIR="/root/deklan"
 LOG_DIR="$RL_DIR/logs"
 MODEL="${MODEL_NAME:-}"
-COMPOSE=$(command -v docker) # auto detect
 
-# Force docker compose syntax
 COMPOSE_CMD="docker compose"
 
-# =====================================================
-#   HELPERS
-# =====================================================
-fail() { echo -e "\e[31m❌ $1\e[0m"; exit 1; }
-say()  { echo -e "\e[32m✅ $1\e[0m"; }
-note() { echo -e "\e[36m$1\e[0m"; }
-warn() { echo -e "\e[33m⚠ $1\e[0m"; }
+# ===== COLORS =====
+GREEN="\e[32m"
+RED="\e[31m"
+YELLOW="\e[33m"
+CYAN="\e[36m"
+NC="\e[0m"
 
-# =====================================================
-#   CHECK FOLDERS
-# =====================================================
+fail() { echo -e "${RED}❌ $1${NC}"; exit 1; }
+say()  { echo -e "${GREEN}✅ $1${NC}"; }
+note() { echo -e "${CYAN}$1${NC}"; }
+warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
+
+###########################################################################
+#   PREP CHECK
+###########################################################################
 mkdir -p "$LOG_DIR"
 
 cd "$RL_DIR" || fail "RL-Swarm folder not found → $RL_DIR"
+
+# load .env
+if [[ -f "$RL_DIR/.env" ]]; then
+    export $(grep -v '^#' "$RL_DIR/.env" | xargs -d '\n')
+fi
 
 note "
 ==================================================
  ⚡  GENSYN RL-SWARM — run_node.sh
 ==================================================
 Time: $(date)
+RL_DIR = $RL_DIR
 "
 
-# =====================================================
+###########################################################################
 #   CHECK docker
-# =====================================================
+###########################################################################
 if ! command -v docker >/dev/null 2>&1; then
     fail "docker not installed"
 fi
 
-# Try 'docker compose', fallback to plugin
 if ! docker compose version >/dev/null 2>&1; then
     if ! docker-compose version >/dev/null 2>&1; then
-        fail "docker compose not available"
+        fail "docker compose not found"
     else
         COMPOSE_CMD="docker-compose"
     fi
 fi
 
-
-# =====================================================
-#   GIT UPDATE
-# =====================================================
+###########################################################################
+#   ASK OPTIONAL git update
+###########################################################################
 if [[ -d ".git" ]]; then
-    note "[*] Updating RL-Swarm repository…"
-    git fetch --all >/dev/null 2>&1 || true
-    git reset --hard origin/main  >/dev/null 2>&1 || true
-    say "Repo updated ✅"
+    read -p "Update RL-Swarm (git pull)? [Y/n] > " ans || true
+    if [[ ! "$ans" =~ ^[Nn]$ ]]; then
+        note "[*] Updating RL-Swarm…"
+        git pull || warn "pull failed"
+        say "Repo updated ✅"
+    else
+        warn "Skipping update"
+    fi
 else
     warn "Not a git repo → skip update"
 fi
 
-
-# =====================================================
-#   CLEAN DOCKER
-# =====================================================
-note "[*] Cleaning unused containers…"
-docker ps -aq | xargs -r docker rm -f >/dev/null 2>&1 || true
-
-
-# =====================================================
+###########################################################################
 #   PULL IMAGES
-# =====================================================
-note "[*] Pulling latest images…"
-$COMPOSE_CMD pull || warn "Failed pulling — continuing"
+###########################################################################
+note "[*] Pulling images…"
+$COMPOSE_CMD pull || warn "Pull failed — continuing"
 
-
-# =====================================================
+###########################################################################
 #   BUILD
-# =====================================================
-note "[*] Building swarm-cpu…"
+###########################################################################
+note "[*] Building image…"
 $COMPOSE_CMD build swarm-cpu || warn "Build failed — continuing"
 
-
-# =====================================================
+###########################################################################
 #   RUN NODE
-# =====================================================
-note "[*] Starting swarm-cpu container…"
+###########################################################################
+note "[*] Starting swarm-cpu…"
 
-EXTRA_MODEL_ARG=""
+EXTRA_ARG=""
 if [[ -n "$MODEL" ]]; then
-    note "[*] Using MODEL: $MODEL"
-    EXTRA_MODEL_ARG="--env MODEL_NAME=$MODEL"
+    note "MODEL: $MODEL"
+    EXTRA_ARG="--env MODEL_NAME=$MODEL"
 fi
 
-exec $COMPOSE_CMD run --rm -Pit $EXTRA_MODEL_ARG swarm-cpu
+exec $COMPOSE_CMD run --rm -Pit $EXTRA_ARG swarm-cpu
