@@ -2,14 +2,16 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM — CLEAN REINSTALL
+#   GENSYN RL-SWARM — CLEAN REINSTALL v2
 #   by Deklan & GPT-5
 ###########################################################################
 
 SERVICE_NAME="gensyn"
 RL_DIR="/root/rl_swarm"
 KEY_DIR="/root/deklan"
-COMPOSE="docker compose"
+REPO_URL="https://github.com/gensyn-ai/rl-swarm"
+COMPOSE_BIN=""
+REQ_KEYS=("swarm.pem" "userData.json" "userApiKey.json")
 
 GREEN="\e[32m"
 RED="\e[31m"
@@ -36,19 +38,43 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
+
+###########################################################################
+#   FIND docker compose
+###########################################################################
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    COMPOSE_BIN="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_BIN="docker-compose"
+else
+    warn "docker compose missing → installing…"
+    apt update -y
+    apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    COMPOSE_BIN="docker compose"
+fi
+
+msg "compose → $COMPOSE_BIN"
+
+
 ###########################################################################
 #   STOP SERVICE
 ###########################################################################
-info "[1/5] Stopping service…"
+info "[1/6] Stopping service…"
 systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || warn "Already stopped"
 systemctl disable "$SERVICE_NAME" >/dev/null 2>&1 || true
 
-###########################################################################
-#   UPDATE RL-SWARM
-###########################################################################
-info "[2/5] Updating RL-Swarm…"
 
-if [[ -d "$RL_DIR/.git" ]]; then
+###########################################################################
+#   ENSURE REPO EXISTS
+###########################################################################
+info "[2/6] Ensuring RL-Swarm repo…"
+
+if [[ ! -d "$RL_DIR/.git" ]]; then
+    warn "RL-Swarm missing → cloning fresh…"
+    rm -rf "$RL_DIR"
+    git clone "$REPO_URL" "$RL_DIR"
+    msg "Repo cloned"
+else
     pushd "$RL_DIR" >/dev/null
     read -p "Run git pull update? [Y/n] > " ans || true
     if [[ ! "$ans" =~ ^[Nn]$ ]]; then
@@ -58,41 +84,60 @@ if [[ -d "$RL_DIR/.git" ]]; then
         warn "Skip update"
     fi
     popd >/dev/null
-else
-    err "RL-Swarm repo missing → cannot update"
 fi
 
-###########################################################################
-#   KEYS
-###########################################################################
-info "[3/5] Checking keys…"
 
-if [[ ! -d "$KEY_DIR" ]]; then
-    err "Key folder missing → $KEY_DIR"
-fi
+###########################################################################
+#   CHECK & SYNC KEYS
+###########################################################################
+info "[3/6] Checking identity…"
 
-rm -f "$RL_DIR/keys"
+MISS=0
+for k in "${REQ_KEYS[@]}"; do
+    [[ ! -f "$KEY_DIR/$k" ]] && err "Missing key → $KEY_DIR/$k" && MISS=1
+done
+
+[[ $MISS == 1 ]] && exit 1
+
+rm -rf "$RL_DIR/keys"
 ln -s "$KEY_DIR" "$RL_DIR/keys"
 msg "Symlink refreshed ✅"
+
+
+###########################################################################
+#   .ENV ENSURE
+###########################################################################
+info "[4/6] Syncing env…"
+if [[ ! -f "$RL_DIR/.env" ]]; then
+cat <<EOF > "$RL_DIR/.env"
+GENSYN_KEY_DIR=$KEY_DIR
+PYTHONUNBUFFERED=1
+EOF
+msg ".env created"
+else
+    msg ".env exists → keeping"
+fi
+
 
 ###########################################################################
 #   DOCKER
 ###########################################################################
-info "[4/5] Docker update/build…"
+info "[5/6] Updating docker…"
 
 pushd "$RL_DIR" >/dev/null
 
-$COMPOSE pull || warn "Pull failed"
-$COMPOSE build swarm-cpu || warn "Build failed"
+$COMPOSE_BIN pull || warn "compose pull failed"
+$COMPOSE_BIN build swarm-cpu || warn "compose build failed"
 
 popd >/dev/null
 
 msg "Docker updated ✅"
 
+
 ###########################################################################
 #   START SERVICE
 ###########################################################################
-info "[5/5] Restarting service…"
+info "[6/6] Restarting service…"
 
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
@@ -103,8 +148,7 @@ sleep 2
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     msg "NODE RUNNING ✅"
 else
-    err "NODE FAILED → Check logs:"
-    echo "journalctl -u $SERVICE_NAME -f"
+    err "NODE FAILED → Check: journalctl -u $SERVICE_NAME -f"
     exit 1
 fi
 
