@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM STARTER (STABLE v2)
+#   GENSYN RL-SWARM STARTER (SMART v3)
 #   by Deklan & GPT-5
 ###########################################################################
 
@@ -11,8 +11,10 @@ RL_DIR="/root/rl_swarm"
 KEY_DIR="/root/deklan"
 LOG_DIR="$RL_DIR/logs"
 MODEL="${MODEL_NAME:-}"
+REPO_URL="https://github.com/gensyn-ai/rl-swarm"
 
-COMPOSE_CMD="docker compose"
+COMPOSE_CMD=""
+
 
 # ===== COLORS =====
 GREEN="\e[32m"
@@ -23,117 +25,141 @@ NC="\e[0m"
 
 fail() { echo -e "${RED}❌ $1${NC}"; exit 1; }
 say()  { echo -e "${GREEN}✅ $1${NC}"; }
-note() { echo -e "${CYAN}$1${NC}"; }
 warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
+note() { echo -e "${CYAN}$1${NC}"; }
+
 
 ###########################################################################
-#   PRE CHECKS
+#   BANNER
 ###########################################################################
-mkdir -p "$LOG_DIR"
-
-cd "$RL_DIR" || fail "RL-Swarm folder not found → $RL_DIR"
-
-
-# ===== Load .env if exists =====
-if [[ -f "$RL_DIR/.env" ]]; then
-    export $(grep -v '^#' "$RL_DIR/.env" | xargs -d '\n')
-fi
-
 note "
 ==================================================
  ⚡  GENSYN RL-SWARM — run_node.sh
 ==================================================
-Time  : $(date)
-RL_DIR: $RL_DIR
-KEYS  : $KEY_DIR
+Time     : $(date)
+RL_DIR   : $RL_DIR
+IDENTITY : $KEY_DIR
+==================================================
 "
 
 
 ###########################################################################
-#   KEYS CHECK
+#   INTERNET CHECK
 ###########################################################################
-if [[ ! -d "$KEY_DIR" ]]; then
-    fail "Key folder missing → $KEY_DIR"
+note "[*] Checking internet…"
+if ! ping -c1 github.com >/dev/null 2>&1; then
+    warn "Internet weak / unreachable → continue anyway"
+else
+    say "Internet OK"
 fi
 
-# ensure symlink
+
+###########################################################################
+#   RL-SWARM CHECK → auto clone
+###########################################################################
+if [[ ! -d "$RL_DIR" ]]; then
+    warn "RL-Swarm missing → cloning fresh"
+    git clone "$REPO_URL" "$RL_DIR" || fail "Clone failed"
+    say "Repo cloned ✅"
+fi
+
+cd "$RL_DIR" || fail "RL-Swarm folder not found"
+
+
+###########################################################################
+#   KEY CHECK
+###########################################################################
+REQ=("swarm.pem" "userApiKey.json" "userData.json")
+
+for f in "${REQ[@]}"; do
+    if [[ ! -f "$KEY_DIR/$f" ]]; then
+        fail "Missing identity → $KEY_DIR/$f"
+    fi
+done
+
+say "Identity OK ✅"
+
+# Symlink ensure
 if [[ ! -e "$RL_DIR/keys" ]]; then
     ln -s "$KEY_DIR" "$RL_DIR/keys"
-    say "✅ keys symlink created"
+    say "Symlink created ✅"
+fi
+
+
+###########################################################################
+#   .env CHECK
+###########################################################################
+if [[ ! -f "$RL_DIR/.env" ]]; then
+cat <<EOF > "$RL_DIR/.env"
+GENSYN_KEY_DIR=$KEY_DIR
+PYTHONUNBUFFERED=1
+EOF
+    say ".env created ✅"
 else
-    note "keys OK"
+    note ".env exists"
 fi
 
 
 ###########################################################################
-#   CHECK docker
+#   docker compose DETECT
 ###########################################################################
-if ! command -v docker >/dev/null 2>&1; then
-    fail "docker is not installed"
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+else
+    fail "docker compose not found"
 fi
 
-if ! docker compose version >/dev/null 2>&1; then
-    if command -v docker-compose >/dev/null 2>&1; then
-        COMPOSE_CMD="docker-compose"
-    else
-        fail "docker compose not found"
-    fi
-fi
-
-note "Using: $COMPOSE_CMD"
+note "Using → $COMPOSE_CMD"
 
 
 ###########################################################################
-#   GIT UPDATE (Auto / safe)
+#   AUTO-UPDATE REPO
 ###########################################################################
 if [[ -d ".git" ]]; then
     if [[ "${AUTO_UPDATE:-1}" == "1" ]]; then
         note "[*] Auto-updating RL-Swarm…"
         git fetch --all >/dev/null 2>&1 || true
-        git reset --hard origin/main  >/dev/null 2>&1 || true
-        say "✅ Repo updated"
+        git reset --hard origin/main >/dev/null 2>&1 || true
+        say "Repo updated ✅"
     else
-        warn "Skipping git update (AUTO_UPDATE=0)"
+        warn "AUTO_UPDATE=0 → Skip"
     fi
 else
-    warn "Not a git repo — skipping update"
+    warn "Not a git repo → skip update"
 fi
 
 
 ###########################################################################
-#   CLEAN DEAD CONTAINERS
+#   CLEAN ZOMBIE
 ###########################################################################
-note "[*] Cleaning unused containers…"
+note "[*] Cleanup dead containers…"
 docker ps -aq | xargs -r docker rm -f >/dev/null 2>&1 || true
 
 
 ###########################################################################
-#   PULL IMAGES
+#   PULL + BUILD
 ###########################################################################
-note "[*] Pulling latest images…"
+note "[*] Pulling images…"
 $COMPOSE_CMD pull || warn "pull failed"
 
-
-###########################################################################
-#   BUILD
-###########################################################################
-note "[*] Building swarm-cpu…"
+note "[*] Building image…"
 $COMPOSE_CMD build swarm-cpu || warn "build failed"
 
 
 ###########################################################################
-#   RUN NODE
+#   RUN
 ###########################################################################
 note "[*] Starting swarm-cpu…"
 
-EXTRA_ARG=""
-if [[ -n "$MODEL" ]]; then
-    note "MODEL = $MODEL"
-    EXTRA_ARG="--env MODEL_NAME=$MODEL"
-fi
+EXTRA=""
+[[ -n "$MODEL" ]] && EXTRA="--env MODEL_NAME=$MODEL"
 
-# Persistent container name for watchdog
+# Cleanup stuck old name
+docker rm -f swarm-cpu-run >/dev/null 2>&1 || true
+
 exec $COMPOSE_CMD run --rm -P -it \
     --name swarm-cpu-run \
-    $EXTRA_ARG \
+    $EXTRA \
     swarm-cpu
