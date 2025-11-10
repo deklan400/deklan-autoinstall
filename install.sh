@@ -46,7 +46,7 @@ fi
 ###########################################################################
 #   CHECK IDENTITY FILES
 ###########################################################################
-info "[1/10] Checking identity files…"
+info "[1/11] Checking identity files…"
 mkdir -p "$IDENTITY_DIR"
 
 MISSING=0
@@ -63,7 +63,7 @@ if [[ "$MISSING" -eq 1 ]]; then
     echo ""
     warn "Place your identity files here:"
     warn " → $IDENTITY_DIR"
-    echo "
+echo "
 Required files:
  - swarm.pem
  - userData.json
@@ -79,7 +79,7 @@ fi
 ###########################################################################
 #   UPDATE SYSTEM
 ###########################################################################
-info "[2/10] Updating system…"
+info "[2/11] Updating system…"
 apt update -y && apt upgrade -y
 msg "System updated"
 
@@ -87,7 +87,7 @@ msg "System updated"
 ###########################################################################
 #   INSTALL BASE DEPENDENCIES
 ###########################################################################
-info "[3/10] Installing dependencies…"
+info "[3/11] Installing dependencies…"
 apt install -y curl git unzip build-essential pkg-config libssl-dev screen jq nano
 msg "Dependencies OK"
 
@@ -111,18 +111,19 @@ fi
 ###########################################################################
 #   INSTALL DOCKER
 ###########################################################################
-info "[4/10] Installing Docker…"
+info "[4/11] Checking Docker…"
 
 if ! command -v docker >/dev/null 2>&1; then
+    info "Installing Docker…"
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
         | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
     echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-    https://download.docker.com/linux/ubuntu \
-    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-    > /etc/apt/sources.list.d/docker.list
+"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/ubuntu \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+> /etc/apt/sources.list.d/docker.list
 
     apt update
     apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -137,7 +138,7 @@ systemctl enable --now docker >/dev/null 2>&1 || true
 ###########################################################################
 #   CREATE gensyn USER + DIRECTORY
 ###########################################################################
-info "[5/10] Preparing RL-Swarm folder…"
+info "[5/11] Preparing RL-Swarm folder…"
 
 if ! id "gensyn" >/dev/null 2>&1; then
     useradd -m -s /bin/bash gensyn
@@ -151,23 +152,29 @@ msg "User + folder ready"
 ###########################################################################
 #   CLONE / UPDATE RL-SWARM
 ###########################################################################
-info "[6/10] Pulling RL-Swarm repo…"
+info "[6/11] Managing RL-Swarm…"
 
 if [[ ! -d "$RL_DIR" ]]; then
     sudo -u gensyn git clone https://github.com/gensyn-ai/rl-swarm "$RL_DIR"
-    msg "Repo cloned"
+    msg "Repo cloned ✅"
 else
-    pushd "$RL_DIR" >/dev/null
-    sudo -u gensyn git pull
-    popd >/dev/null
-    msg "Repo updated"
+    echo -e "${YELLOW}Folder already exists → $RL_DIR${NC}"
+    read -p "Update RL-Swarm repo (git pull)? [Y/n] > " pull_ans
+    if [[ "$pull_ans" =~ ^[Nn]$ ]]; then
+        warn "Skipping update"
+    else
+        pushd "$RL_DIR" >/dev/null
+        sudo -u gensyn git pull
+        popd >/dev/null
+        msg "Repo updated ✅"
+    fi
 fi
 
 
 ###########################################################################
 #   COPY IDENTITY FILES
 ###########################################################################
-info "[7/10] Copying identity files…"
+info "[7/11] Copying identity files…"
 
 mkdir -p "$KEYS_DIR"
 
@@ -177,37 +184,37 @@ done
 
 chmod 600 "$KEYS_DIR/swarm.pem"
 chown -R gensyn:gensyn "$KEYS_DIR"
-msg "Identity OK → $KEYS_DIR"
+msg "Identity copied → $KEYS_DIR ✅"
 
 
 ###########################################################################
 #   INSTALL SYSTEMD SERVICE
 ###########################################################################
-info "[8/10] Installing systemd service…"
+info "[8/11] Installing systemd service…"
 
 curl -s -o "/etc/systemd/system/${SERVICE_NAME}.service" "$GITHUB_SERVICE_URL"
 
 systemctl daemon-reload
 systemctl enable --now "$SERVICE_NAME"
-msg "Systemd installed & started"
+msg "Systemd installed & started ✅"
 
 
 ###########################################################################
 #   VALIDATE SERVICE
 ###########################################################################
-info "[9/10] Checking node…"
+info "[9/11] Checking node…"
 sleep 2
 
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     msg "Node is RUNNING ✅"
 else
-    err "Node is NOT running! Check logs:"
+    err "Node is NOT running!"
     echo "journalctl -u $SERVICE_NAME -f"
 fi
 
 
 ###########################################################################
-#   DONE
+#   FINISH
 ###########################################################################
 echo -e "
 ${GREEN}=====================================================
