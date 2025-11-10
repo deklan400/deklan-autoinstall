@@ -92,9 +92,9 @@ echo "[5/9] Cloning rl-swarm repo..."
 if [ ! -d "$RL_DIR" ]; then
     sudo mkdir -p /home/gensyn
     cd /home/gensyn
-    sudo git clone https://github.com/gensyn-ai/rl-swarm rl_swarm
+    sudo git clone https://github.com/gensyn-ai/rl-swamp rl_swarm
 else
-    echo "✅ rl_swsarm already exists → skip"
+    echo "✅ rl_swarm already exists → skip"
 fi
 
 
@@ -125,15 +125,6 @@ sudo curl -s -o /etc/systemd/system/gensyn.service \
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now gensyn
-
-
-####################################################################
-#   START RL-SWARM
-####################################################################
-echo ""
-echo "[8/9] Starting RL-Swarm..."
-
-bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/run_node.sh)
 
 
 ####################################################################
