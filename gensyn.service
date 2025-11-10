@@ -3,38 +3,44 @@ Description=Gensyn RL-Swarm Node
 After=network-online.target docker.service
 Wants=network-online.target docker.service
 
-# Restart policy lebih agresif agar cepat pulih
-StartLimitIntervalSec=60
-StartLimitBurst=5
+# Restart aggressively if failing
+StartLimitIntervalSec=30
+StartLimitBurst=10
 
 [Service]
-# Jalankan sebagai user gensyn → lebih aman
+# Run under gensyn user (security)
 User=gensyn
 Group=gensyn
 
-# Lokasi kerja
+# Working directory for node
 WorkingDirectory=/home/gensyn/rl_swarm
 
-# Environment
+# Load .env if exists
 EnvironmentFile=-/home/gensyn/rl_swarm/.env
+
+# Always unbuffered output
 Environment="PYTHONUNBUFFERED=1"
 
-# Command
+# Main launcher
 ExecStart=/bin/bash /home/gensyn/rl_swarm/run_node.sh
 
-# Restart policy
+# Auto-restart
 Restart=always
 RestartSec=5
 
-# Limit file handles
+# Never kill full systemd cgroup
+KillMode=process
+
+# Improve file handles
 LimitNOFILE=65535
 
 # Logging
 StandardOutput=journal
 StandardError=journal
 
-# Prevent killing whole cgroup
-KillMode=process
+# Ensure docker is running
+# (helps if docker restarts)
+Requires=docker.service
 
 [Install]
 WantedBy=multi-user.target
