@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM — CLEAN UNINSTALL
+#   GENSYN RL-SWARM — CLEAN UNINSTALL (STABLE v2)
 #   by Deklan & GPT-5
 ###########################################################################
 
@@ -23,14 +23,18 @@ info() { echo -e "${CYAN}$1${NC}"; }
 
 echo -e "
 ${CYAN}=====================================================
-🧹  CLEAN UNINSTALL GENSYN RL-SWARM
+🧹  CLEAN UNINSTALL — GENSYN RL-SWARM
 =====================================================${NC}
 "
 
+###########################################################################
+# 0 — ROOT CHECK
+###########################################################################
 if [[ $EUID -ne 0 ]]; then
     err "Run as ROOT!"
     exit 1
 fi
+
 
 ###########################################################################
 # 1 — Remove Systemd Service
@@ -44,49 +48,65 @@ systemctl daemon-reload
 
 msg "Service removed ✅"
 
+
 ###########################################################################
-# 2 — Clean RL-SWARM Directory
+# 2 — Remove RL-Swarm Code
 ###########################################################################
-info "[2/5] Removing RL-Swarm code…"
+info "[2/5] Removing RL-Swarm directory…"
 
 if [[ -d "$RL_DIR" ]]; then
     rm -rf "$RL_DIR"
     msg "Removed → $RL_DIR"
 else
-    warn "RL-Swarm folder missing → skip"
+    warn "Directory not found → skip"
 fi
 
+
 ###########################################################################
-# 3 — Keys folder (optional)
+# 3 — Remove Keys (optional flag)
 ###########################################################################
+REMOVE_KEYS="${REMOVE_KEYS:-0}"
+
 info "[3/5] Keys folder → $KEY_DIR"
-read -p "Remove keys folder? [y/N] > " ans || true
-if [[ "$ans" =~ ^[Yy]$ ]]; then
-    rm -rf "$KEY_DIR"
-    msg "Keys removed ✅"
+
+if [[ "$REMOVE_KEYS" == "1" ]]; then
+    if [[ -d "$KEY_DIR" ]]; then
+        rm -rf "$KEY_DIR"
+        msg "Keys removed ✅"
+    else
+        warn "Keys folder missing → skip"
+    fi
 else
-    warn "Keys retained ✅"
+    warn "Keys retained (set REMOVE_KEYS=1 to auto-remove)"
 fi
 
-###########################################################################
-# 4 — Docker cleanup (NON-DESTRUCTIVE)
-###########################################################################
-info "[4/5] Cleaning docker (swarm-cpu only)…"
 
+###########################################################################
+# 4 — Docker Cleanup
+###########################################################################
+info "[4/5] Cleaning docker artifacts…"
+
+# stop/remove containers named swarm-cpu
 docker ps -a --filter "name=swarm-cpu" -q | xargs -r docker rm -f >/dev/null 2>&1 || true
-docker images | grep swarm-cpu | awk '{print $3}' | xargs -r docker rmi -f >/dev/null 2>&1 || true
 
-msg "Docker partial cleanup complete ✅"
+# remove images with name swarm-cpu
+docker images | grep "swarm-cpu" | awk '{print $3}' | xargs -r docker rmi -f >/dev/null 2>&1 || true
+
+msg "Docker cleanup OK ✅"
+
 
 ###########################################################################
-# 5 — Final
+# 5 — Final Output
 ###########################################################################
 echo -e "
-${GREEN}✅ UNINSTALL COMPLETE
+${GREEN}=====================================================
+ ✅ UNINSTALL COMPLETE
 =====================================================
-Remaining items:
-✔ Keys kept (unless deleted)
-✔ Docker untouched (except swarm-cpu)
-=====================================================
-${NC}
+
+✔ Systemd service removed
+✔ RL-Swarm code removed
+✔ Keys kept (unless REMOVE_KEYS=1)
+✔ Docker cleaned (swarm-cpu only)
+
+=====================================================${NC}
 "
