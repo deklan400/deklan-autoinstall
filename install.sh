@@ -94,12 +94,14 @@ if [ ! -d "$RL_DIR" ]; then
     cd /home/gensyn
     sudo git clone https://github.com/gensyn-ai/rl-swarm rl_swarm
 else
-    echo "✅ rl_swarm already exists → skip"
+    echo "✅ rl_swarm already exists → updating..."
+    cd "$RL_DIR"
+    sudo git pull
 fi
 
 
 ####################################################################
-#   COPY IDENTITY (PEM + API + DATA)
+#   COPY IDENTITY
 ####################################################################
 echo ""
 echo "[6/9] Copying identity files..."
