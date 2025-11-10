@@ -92,7 +92,7 @@ echo "[5/9] Cloning rl-swarm repo..."
 if [ ! -d "$RL_DIR" ]; then
     sudo mkdir -p /home/gensyn
     cd /home/gensyn
-    sudo git clone https://github.com/gensyn-ai/rl-swamp rl_swarm
+    sudo git clone https://github.com/gensyn-ai/rl-swarm rl_swarm
 else
     echo "✅ rl_swarm already exists → skip"
 fi
