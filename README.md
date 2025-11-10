@@ -5,12 +5,11 @@
 # 🌙🚀 GENSYN RL-SWARM  
 ### ⚡ ONE-COMMAND AUTO INSTALLER
 
-> **Deploy Gensyn Node dalam 10 detik — aman, simple, otomatis.**  
+> **Deploy RL-Swarm Node dalam 10 detik — aman, cepat, auto-management**  
 
 <img src="https://img.shields.io/badge/Gensyn-RL--Swarm-0a84ff?style=for-the-badge"/>
 <img src="https://img.shields.io/badge/Auto_Installer-00d18a?style=for-the-badge"/>
 <img src="https://img.shields.io/badge/Systemd-AutoStart-fd8a09?style=for-the-badge"/>
-<img src="https://img.shields.io/badge/Local_Identity-Safe-critical?style=for-the-badge"/>
 <img src="https://img.shields.io/badge/Copy_And_Run-1_Step-lightgrey?style=for-the-badge"/>
 
 </div>
@@ -18,10 +17,11 @@
 ---
 
 <p align="center">
-<img width="85%" src="https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/assets/dark-preview.png" />
+<img width="85%" src="assets/dark-preview.png" />
 </p>
 
-> ✅ Jika preview belum ada → upload screenshot ke folder `/assets/`
+> ✅ Jika preview belum muncul → upload screenshot ke folder:  
+`/assets/dark-preview.png`
 
 ---
 
@@ -31,43 +31,44 @@
 ✔ Install dependencies  
 ✔ Install Docker  
 ✔ Clone RL-Swarm  
-✔ Copy identity → `/keys`  
+✔ Link identity → `/keys/`  
 ✔ Setup systemd service  
-✔ Auto-start & auto-restart  
-✔ Cocok deploy massal / pindah VPS  
+✔ Auto-start + autorestart  
+✔ Bisa untuk multi server / migrasi VPS  
 
 ---
 
 ## 📁 Persiapan Identity (WAJIB)
 
-Tambahkan **3 file** ini:
+Siapkan **3 file** berikut:
 
 | File | Fungsi |
 |------|--------|
 | `swarm.pem` | Private key |
 | `userApiKey.json` | API Credential |
-| `userData.json` | Account Data |
+| `userData.json` | User / Account Data |
 
-📌 Upload ke:
-
+Upload →  
 ```
 /root/deklan/
 ```
 
-Jika ada yg kurang → installer berhenti otomatis ⚠️  
+Jika salah satu file hilang → installer otomatis berhenti ⚠️  
 
 ---
 
-## 🚀 Quick Install
+## 🚀 Quick Install (1 Command)
 
-> Jalankan script installer otomatis
+> Pastikan 3 identity sudah berada di:
+> `/root/deklan/`
 
-```
+```bash
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
 ```
 
-✅ Node auto hidup  
-✅ Tidak perlu config manual  
+✅ Node auto jalan  
+✅ Auto restart enable  
+✅ No config needed  
 
 ---
 
@@ -80,10 +81,8 @@ bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/ma
 └── userData.json
 
 /root/rl_swarm/
-│── keys/
-│   ├── swarm.pem
-│   ├── userApiKey.json
-│   └── userData.json
+│── keys/   → symlink ke /root/deklan
+│── docker-compose.yaml
 └── source ...
 ```
 
@@ -97,12 +96,12 @@ Identity otomatis →
 ## 📊 Cek Status Node
 
 Status:
-```
+```bash
 systemctl status gensyn
 ```
 
 Log realtime:
-```
+```bash
 journalctl -u gensyn -f
 ```
 
@@ -110,78 +109,62 @@ journalctl -u gensyn -f
 
 ## 🔁 Restart Node
 
-```
+```bash
 systemctl restart gensyn
 ```
 
 Atau:
-```
+```bash
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/restart.sh)
 ```
 
 ---
 
-## 📌 Lokasi Penting
+## 🔄 Update
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/update.sh)
+```
+
+---
+
+## 🔁 Reinstall
+
+> 🟡 Tidak menghapus identity
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/reinstall.sh)
+```
+
+---
+
+## ❌ Uninstall
+
+> Identity **tidak dihapus**
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/uninstall.sh)
+```
+
+---
+
+## ⚡ Lokasi Penting
 
 | Resource | Path |
 |----------|------|
 | Service file | `/etc/systemd/system/gensyn.service` |
 | Repo folder  | `/root/rl_swarm/` |
 | Keys folder  | `/root/rl_swarm/keys/` |
+| Identity folder | `/root/deklan/` |
 
 ---
 
-## 🔄 Auto-Restart
+## 🧠 Notes
 
-Node auto restart ketika:
-✅ VPS reboot  
-✅ Node crash  
-✅ Node mati mendadak  
-
-Stop:
-```
-systemctl stop gensyn
-```
-
-Disable:
-```
-systemctl disable gensyn
-```
-
----
-
-## ⚡ Worker Script → `run_node.sh`
-
-Dijalankan via systemd → pastikan docker compose aktif.
-
----
-
-## 📦 Re-Install / Pindah VPS
-
-1) Copy identity:
-```
-/root/deklan/
-```
-
-2) Run:
-```
-bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
-```
-
-✅ Langsung running  
-✅ Tidak perlu input ulang  
-
----
-
-## ❌ Uninstall
-
-```
-systemctl stop gensyn
-systemctl disable gensyn
-rm /etc/systemd/system/gensyn.service
-rm -rf /root/rl_swarm
-systemctl daemon-reload
-```
+✔ Bisa dipindah ke VPS lain  
+✔ Minimal potongan config  
+✔ Automatic update git saat node dijalankan  
+✔ Docker build otomatis  
 
 ---
 
@@ -199,21 +182,22 @@ systemctl daemon-reload
 ✅ DONE
 ```
 
-> ✔ Node berjalan sukses!
+> Node berhasil berjalan ✅
 
 ---
 
 ## 🔐 Keamanan
 
-⚠ Jangan upload `swarm.pem` ke internet  
-✅ Backup offline  
-✅ Installer **tidak kirim data ke server manapun**  
+⚠ `swarm.pem` adalah private key  
+✅ Jangan disimpan online  
+✅ Simpan backup offline  
+✅ Installer **tidak kirim data ke server mana pun**  
 
 ---
 
 <div align="center">
 
-### ❤️ Built by **Deklan × GPT-5**
-Dark-theme • Clean • Auto-Deploy
+### ✅ Built by **Deklan × GPT-5**  
+Dark • Clean • Minimal
 
 </div>
