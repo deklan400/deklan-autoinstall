@@ -21,7 +21,7 @@ WorkingDirectory=/root/rl_swarm
 EnvironmentFile=-/root/rl_swarm/.env
 
 # Identity
-Environment="GENSYN_KEY_DIR=/root/rl_swarm/keys"
+Environment="GENSYN_KEY_DIR=/root/deklan"
 Environment="PYTHONUNBUFFERED=1"
 Environment="PYTHONIOENCODING=UTF-8"
 
