@@ -2,7 +2,7 @@
 set -e
 
 ###########################################################################
-#   GENSYN RL-SWARM CLEAN INSTALLER (FIXED)
+#   GENSYN RL-SWARM CLEAN INSTALLER (FIXED+UPGRADED)
 #   by Deklan & GPT-5
 ###########################################################################
 
@@ -15,6 +15,7 @@ NC="\e[0m"
 IDENTITY_DIR="/root/deklan"
 RL_DIR="/root/rl_swarm"
 SERVICE_NAME="gensyn"
+SERVICE_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 
 REQUIRED_FILES=("swarm.pem" "userData.json" "userApiKey.json")
 
@@ -35,9 +36,9 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 ###########################################################################
-#   CHECK KEYS
+# 1 — CHECK KEYS
 ###########################################################################
-info "[1/8] Checking identity files…"
+info "[1/9] Checking identity files…"
 for FILE in "${REQUIRED_FILES[@]}"; do
     if [[ ! -f "$IDENTITY_DIR/$FILE" ]]; then
         err "Missing: $IDENTITY_DIR/$FILE"
@@ -53,21 +54,21 @@ if [[ "$NEED" == 1 ]]; then
 fi
 
 ###########################################################################
-#   UPDATE SYSTEM
+# 2 — UPDATE SYSTEM
 ###########################################################################
-info "[2/8] Updating system…"
+info "[2/9] Updating system…"
 apt update -y && apt upgrade -y
 msg "System updated"
 
 ###########################################################################
-#   INSTALL DEPENDENCIES
+# 3 — DEPENDENCIES
 ###########################################################################
-info "[3/8] Installing deps…"
+info "[3/9] Installing deps…"
 apt install -y curl git unzip build-essential pkg-config libssl-dev screen jq nano
 msg "Dependencies OK"
 
 ###########################################################################
-#   OPTIONAL NODE + YARN
+# 4 — OPTIONAL NODE + YARN
 ###########################################################################
 read -p "Install NodeJS+Yarn? [Y/n] > " ans
 if [[ "$ans" =~ ^[Nn]$ ]]; then
@@ -81,9 +82,9 @@ else
 fi
 
 ###########################################################################
-#   DOCKER INSTALL
+# 5 — DOCKER
 ###########################################################################
-info "[4/8] Checking Docker…"
+info "[4/9] Checking Docker…"
 if ! command -v docker >/dev/null 2>&1; then
     info "Installing Docker…"
     install -m 0755 -d /etc/apt/keyrings
@@ -106,9 +107,9 @@ fi
 systemctl enable --now docker >/dev/null 2>&1 || true
 
 ###########################################################################
-#   CLONE RL-SWARM
+# 6 — RL-SWARM CLONE
 ###########################################################################
-info "[5/8] Managing RL-Swarm…"
+info "[5/9] Managing RL-Swarm…"
 
 if [[ ! -d "$RL_DIR" ]]; then
     git clone https://github.com/gensyn-ai/rl-swarm "$RL_DIR"
@@ -127,17 +128,17 @@ else
 fi
 
 ###########################################################################
-#   PREPARE KEYS
+# 7 — KEYS
 ###########################################################################
-info "[6/8] Preparing keys…"
+info "[6/9] Preparing keys…"
 rm -rf "$RL_DIR/keys"
 ln -s "$IDENTITY_DIR" "$RL_DIR/keys"
 msg "Symlink created → $RL_DIR/keys ✅"
 
 ###########################################################################
-#   CREATE .env
+# 8 — .env
 ###########################################################################
-info "[7/8] Creating .env…"
+info "[7/9] Creating .env…"
 
 cat <<EOF > "$RL_DIR/.env"
 GENSYN_KEY_DIR=$IDENTITY_DIR
@@ -147,19 +148,33 @@ EOF
 msg ".env ready ✅"
 
 ###########################################################################
-#   DONE
+# 9 — SERVICE REMINDER
 ###########################################################################
+if [[ -f "$SERVICE_PATH" ]]; then
+    warn "Service already exists → $SERVICE_PATH"
+else
+    warn "Service NOT found → install manually:"
+    echo "
+cp gensyn.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable gensyn
+systemctl restart gensyn
+"
+fi
+
 echo -e "
 ${GREEN}=====================================================
  ✅ INSTALL DONE — NEXT STEP
 =====================================================
-1) Ensure service installed:
-$ systemctl enable $SERVICE_NAME
 
-2) Start node:
-$ systemctl restart $SERVICE_NAME
+Enable service:
+  systemctl enable gensyn
 
-3) View logs:
-$ journalctl -u $SERVICE_NAME -f
+Start service:
+  systemctl restart gensyn
+
+Logs:
+  journalctl -u gensyn -f
+
 ${NC}
 "
