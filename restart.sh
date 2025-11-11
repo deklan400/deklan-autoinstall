@@ -2,16 +2,14 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM RESTARTER (SMART+) — v3.3
+#   GENSYN RL-SWARM RESTARTER — v4 (CPU Smart)
 #   by Deklan & GPT-5
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/root/rl_swarm"
+RL_DIR="/root/rl-swarm"
 KEY_DIR="/root/deklan"
 REQ_KEYS=("swarm.pem" "userData.json" "userApiKey.json")
-
-COMPOSE_BIN=""
 
 GREEN="\e[32m"
 RED="\e[31m"
@@ -26,66 +24,42 @@ note() { echo -e "${CYAN}$1${NC}"; }
 
 echo -e "
 ==================================================
- 🔄 SMART+ Restart — Gensyn RL-Swarm
+ 🔄 Restart — Gensyn RL-Swarm (CPU-only)
 ==================================================
 Time: $(date)
 "
 
 
 ###########################################################################
-#   Detect docker compose
-###########################################################################
-if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    COMPOSE_BIN="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_BIN="docker-compose"
-else
-    warn "docker compose missing → installing…"
-    apt update -y >/dev/null
-    apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin >/dev/null
-    COMPOSE_BIN="docker compose"
-fi
-say "compose → $COMPOSE_BIN"
-
-
-###########################################################################
-#   Check service
+#   Validate service exists
 ###########################################################################
 if ! systemctl list-unit-files | grep -q "^${SERVICE_NAME}\.service"; then
-    fail "Service '${SERVICE_NAME}.service' NOT found"
+    fail "Service '${SERVICE_NAME}.service' NOT installed"
 fi
 say "Service exists ✅"
 
 
 ###########################################################################
-#   Check RL-Swarm folder
+#   Validate RL-Swarm folder
 ###########################################################################
-if [[ ! -d "$RL_DIR" ]]; then
-    fail "RL-Swarm missing → $RL_DIR"
-fi
+[[ -d "$RL_DIR" ]] || fail "RL-Swarm missing → $RL_DIR"
 say "RL-Swarm folder OK ✅"
 
 
 ###########################################################################
-#   Check identity keys
+#   Validate identity
 ###########################################################################
-MISS=0
 for k in "${REQ_KEYS[@]}"; do
-    if [[ ! -f "$KEY_DIR/$k" ]]; then
-        warn "Missing key → $KEY_DIR/$k"
-        MISS=1
-    fi
+    [[ -f "$KEY_DIR/$k" ]] || fail "Missing → $KEY_DIR/$k"
 done
-
-[[ $MISS == 1 ]] && fail "Identity incomplete → abort restart"
 say "Identity OK ✅"
 
 
 ###########################################################################
-#   Ensure run_node.sh permission
+#   Ensure run_node.sh executable
 ###########################################################################
 if [[ ! -x "$RL_DIR/run_node.sh" ]]; then
-    warn "run_node.sh no exec perm → fixing"
+    warn "run_node.sh not executable → fixing"
     chmod +x "$RL_DIR/run_node.sh"
 fi
 
@@ -93,50 +67,29 @@ fi
 ###########################################################################
 #   Clean zombie docker containers
 ###########################################################################
-note "[*] Removing dead docker containers..."
+note "[*] Cleanup old docker containers…"
 docker ps -aq | xargs -r docker rm -f >/dev/null 2>&1 || true
 say "Docker cleanup OK ✅"
 
 
 ###########################################################################
-#   Restart systemd
+#   Restart service
 ###########################################################################
-note "[*] systemctl daemon-reload"
+note "[*] Restarting service…"
 systemctl daemon-reload
-
-note "[*] Restarting service: $SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
 sleep 2
 
-
-###########################################################################
-#   First validation
-###########################################################################
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     say "Systemd restart OK ✅"
 else
-    warn "Systemd restart FAILED — trying docker compose fallback"
-
-    pushd "$RL_DIR" >/dev/null 2>&1 || true
-    $COMPOSE_BIN restart swarm-cpu || warn "compose restart failed"
-    popd >/dev/null || true
-
-    sleep 3
+    warn "Systemd restart FAILED"
+    fail "Node NOT running ❌"
 fi
 
 
 ###########################################################################
-#   Final validate
-###########################################################################
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-    say "Node RUNNING ✅"
-else
-    fail "Node still NOT running ❌"
-fi
-
-
-###########################################################################
-#   Logs
+#   Print logs
 ###########################################################################
 echo ""
 note "[*] Last 30 log lines:"
@@ -150,8 +103,8 @@ echo ""
 if [[ "${1:-}" == "-f" ]]; then
     note "[*] Tailing logs (Ctrl + C exit)…"
     journalctl -u "$SERVICE_NAME" -f
-else
-    say "Done ✅"
-    echo "➡ Follow logs:"
-    echo "   journalctl -u $SERVICE_NAME -f"
 fi
+
+say "Done ✅"
+echo "➡ Follow logs:"
+echo "   journalctl -u $SERVICE_NAME -f"
