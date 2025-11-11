@@ -2,17 +2,16 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM — CLEAN REINSTALL v3.3 SMART
+#   GENSYN RL-SWARM — REINSTALL (v4 CPU-only)
 #   by Deklan & GPT-5
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/root/rl_swarm"
+RL_DIR="/root/rl-swarm"
 KEY_DIR="/root/deklan"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm"
-REQ_KEYS=("swarm.pem" "userData.json" "userApiKey.json")
 
-COMPOSE_BIN=""
+REQ=("swarm.pem" "userData.json" "userApiKey.json")
 
 GREEN="\e[32m"
 RED="\e[31m"
@@ -20,126 +19,103 @@ YELLOW="\e[33m"
 CYAN="\e[36m"
 NC="\e[0m"
 
-msg()   { echo -e "${GREEN}✅ $1${NC}"; }
-warn()  { echo -e "${YELLOW}⚠ $1${NC}"; }
-err()   { echo -e "${RED}❌ $1${NC}"; }
-info()  { echo -e "${CYAN}$1${NC}"; }
+msg()  { echo -e "${GREEN}✅ $1${NC}"; }
+warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
+fail() { echo -e "${RED}❌ $1${NC}"; exit 1; }
+info() { echo -e "${CYAN}$1${NC}"; }
 
-echo -e "
-${CYAN}=====================================================
- 🔁  REINSTALL RL-SWARM NODE — SMART MODE
-=====================================================${NC}
+info "
+=====================================================
+ 🔁  REINSTALL RL-SWARM NODE — v4 CPU
+=====================================================
 "
 
+
 ###########################################################################
-#   CHECK ROOT
+# ROOT CHECK
 ###########################################################################
-[[ $EUID -ne 0 ]] && err "Run as ROOT!" && exit 1
+[[ $EUID -ne 0 ]] && fail "Run as ROOT!"
 
 
 ###########################################################################
-#   CHECK identity folder
+# STOP SERVICE (if exists)
 ###########################################################################
-mkdir -p "$KEY_DIR"
-
-
-###########################################################################
-#   FIND docker compose
-###########################################################################
-if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    COMPOSE_BIN="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_BIN="docker-compose"
-else
-    warn "docker compose missing → installing…"
-    apt update -y
-    apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-    COMPOSE_BIN="docker compose"
-fi
-msg "compose → $COMPOSE_BIN"
-
-
-###########################################################################
-info "[1/6] Stopping service…"
-###########################################################################
-systemctl stop "$SERVICE_NAME" 2>/dev/null || warn "Already stopped"
+info "[1/5] Stopping service…"
+systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 systemctl disable "$SERVICE_NAME" 2>/dev/null || true
 
 
 ###########################################################################
-info "[2/6] Repair + Update RL-Swarm repo…"
+# CHECK + REPAIR REPO
 ###########################################################################
+info "[2/5] Fixing RL-Swarm repo…"
 
 if [[ ! -d "$RL_DIR" ]]; then
-    warn "Repo not found → cloning fresh"
+    warn "Repo missing → cloning fresh"
     git clone "$REPO_URL" "$RL_DIR"
-    msg "Cloned ✅"
+    msg "Repo cloned"
 
 elif [[ ! -d "$RL_DIR/.git" ]]; then
-    warn "Folder exists but NOT a git repo → replacing"
+    warn "$RL_DIR exists but NOT GIT → replacing"
     rm -rf "$RL_DIR"
     git clone "$REPO_URL" "$RL_DIR"
-    msg "Replaced via fresh clone ✅"
+    msg "Repo replaced"
 
 else
     pushd "$RL_DIR" >/dev/null
-    info "Cleaning repo + updating origin…"
     git fetch --all >/dev/null 2>&1 || true
     git reset --hard origin/main >/dev/null 2>&1 || warn "git reset failed"
     popd >/dev/null
-    msg "Repo updated ✅"
+    msg "Repo synced ✅"
 fi
 
 
 ###########################################################################
-info "[3/6] Validating identity…"
+# VALIDATE IDENTITY
 ###########################################################################
-MISS=0
-for k in "${REQ_KEYS[@]}"; do
-    if [[ ! -f "$KEY_DIR/$k" ]]; then
-        err "Missing → $KEY_DIR/$k"
-        MISS=1
-    fi
+info "[3/5] Checking identity…"
+
+for f in "${REQ[@]}"; do
+    [[ -f "$KEY_DIR/$f" ]] || fail "Missing → $KEY_DIR/$f"
 done
-
-[[ $MISS == 1 ]] && err "Identity incomplete — abort" && exit 1
-
-rm -rf "$RL_DIR/keys" 2>/dev/null || true
-ln -s "$KEY_DIR" "$RL_DIR/keys"
-msg "Symlink refreshed ✅"
+msg "Identity OK ✅"
 
 
 ###########################################################################
-info "[4/6] Syncing .env…"
+# FIX SYMLINK
 ###########################################################################
-if [[ ! -f "$RL_DIR/.env" ]]; then
-cat <<EOF > "$RL_DIR/.env"
-GENSYN_KEY_DIR=$KEY_DIR
-PYTHONUNBUFFERED=1
-EOF
-msg ".env created ✅"
+mkdir -p "$RL_DIR/user"
+rm -rf "$RL_DIR/user/keys" 2>/dev/null || true
+ln -s "$KEY_DIR" "$RL_DIR/user/keys"
+msg "Symlink OK → $RL_DIR/user/keys → $KEY_DIR"
+
+
+###########################################################################
+# UPDATE DOCKER CPU IMAGE
+###########################################################################
+info "[4/5] Update CPU docker image…"
+
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE="docker-compose"
 else
-    msg ".env exists → using ✅"
+    fail "docker compose not found"
 fi
 
-
-###########################################################################
-info "[5/6] Updating docker build…"
-###########################################################################
 pushd "$RL_DIR" >/dev/null
-
-set +e
-$COMPOSE_BIN pull
-$COMPOSE_BIN build swarm-cpu
-set -e
-
+$COMPOSE pull swarm-cpu || warn "pull failed"
+$COMPOSE build swarm-cpu || warn "build failed"
 popd >/dev/null
-msg "Docker updated ✅"
+
+msg "Docker CPU image updated ✅"
 
 
 ###########################################################################
-info "[6/6] Restarting service…"
+# RESTART SERVICE
 ###########################################################################
+info "[5/5] Restarting node service…"
+
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
 systemctl restart "$SERVICE_NAME" || true
@@ -148,10 +124,9 @@ sleep 2
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     msg "NODE RUNNING ✅"
 else
-    err "NODE FAILED → check logs:"
-    echo "   journalctl -u $SERVICE_NAME -f"
-    exit 1
+    fail "NODE FAILED → check logs:"
 fi
 
-
-msg "✅ REINSTALL COMPLETE!"
+echo ""
+echo "➡ Logs:"
+echo "   journalctl -u $SERVICE_NAME -f"
