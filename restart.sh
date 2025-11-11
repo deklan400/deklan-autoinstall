@@ -7,7 +7,7 @@ set -euo pipefail
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/root/rl_swarm"
+RL_DIR="/root/rl-swarm"
 KEY_DIR="/root/deklan"
 REQ_KEYS=("swarm.pem" "userData.json" "userApiKey.json")
 
