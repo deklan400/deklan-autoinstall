@@ -1,10 +1,10 @@
 [Unit]
-Description=Gensyn RL-Swarm Node
+Description=Gensyn RL-Swarm Node (CPU-only)
 After=network-online.target docker.service
 Wants=network-online.target docker.service
 Requires=docker.service
 
-# Retry policy
+# Retry policies
 StartLimitIntervalSec=60
 StartLimitBurst=15
 
@@ -13,33 +13,33 @@ Type=simple
 User=root
 Group=root
 
-# RL-Swarm directory
-WorkingDirectory=/root/rl_swarm
+# RL-Swarm working directory
+WorkingDirectory=/root/rl-swarm
 
-# Load .env (optional)
-EnvironmentFile=-/root/rl_swarm/.env
+# Optional .env
+EnvironmentFile=-/root/rl-swarm/.env
 
-# Identity
+# Base ENV
 Environment="GENSYN_KEY_DIR=/root/deklan"
 Environment="PYTHONUNBUFFERED=1"
 Environment="PYTHONIOENCODING=UTF-8"
 
-# Main runner
-ExecStart=/bin/bash /root/rl_swarm/run_node.sh
+# ENTRY (run_node CPU)
+ExecStart=/usr/bin/env bash /root/rl-swarm/run_node.sh
 ExecReload=/bin/kill -HUP $MAINPID
 
-# Restart policy
+# Restart config
 Restart=always
 RestartSec=5
 KillMode=mixed
 
-# Resource limit (ulimit)
+# ulimit
 LimitNOFILE=65535
 
 # Timeout
 TimeoutStopSec=20
 
-# Logging
+# Logs
 StandardOutput=journal
 StandardError=journal
 
