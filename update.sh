@@ -7,7 +7,7 @@ set -euo pipefail
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/root/rl_swarm"
+RL_DIR="/root/rl-swarm"
 KEY_DIR="/root/deklan"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm"
 
@@ -83,7 +83,7 @@ for f in "${REQ[@]}"; do
 done
 say "Identity OK ✅"
 
-# Fix symlink → /root/rl_swarm/keys
+# Fix symlink → /root/rl-swarm/keys
 rm -rf "$RL_DIR/keys" 2>/dev/null || true
 ln -s "$KEY_DIR" "$RL_DIR/keys"
 say "Symlink OK → $RL_DIR/keys → $KEY_DIR ✅"
