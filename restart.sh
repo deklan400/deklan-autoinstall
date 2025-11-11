@@ -7,7 +7,7 @@ set -euo pipefail
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/root/rl-swarm"
+RL_DIR="/root/rl_swarm"
 KEY_DIR="/root/deklan"
 REQ_KEYS=("swarm.pem" "userData.json" "userApiKey.json")
 
@@ -56,16 +56,15 @@ say "Identity OK ✅"
 
 
 ###########################################################################
-#   Ensure run_node.sh executable
+#   Enforce keys symlink
 ###########################################################################
-if [[ ! -x "$RL_DIR/run_node.sh" ]]; then
-    warn "run_node.sh not executable → fixing"
-    chmod +x "$RL_DIR/run_node.sh"
-fi
+rm -rf "$RL_DIR/keys" 2>/dev/null || true
+ln -s "$KEY_DIR" "$RL_DIR/keys"
+say "Symlink OK → $RL_DIR/keys → $KEY_DIR"
 
 
 ###########################################################################
-#   Clean zombie docker containers
+#   Cleanup zombie docker containers
 ###########################################################################
 note "[*] Cleanup old docker containers…"
 docker ps -aq | xargs -r docker rm -f >/dev/null 2>&1 || true
