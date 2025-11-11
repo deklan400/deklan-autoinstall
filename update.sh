@@ -7,7 +7,7 @@ set -euo pipefail
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/root/rl-swarm"
+RL_DIR="/root/rl_swarm"
 KEY_DIR="/root/deklan"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm"
 
@@ -25,13 +25,13 @@ note() { echo -e "${CYAN}$1${NC}"; }
 
 note "
 =====================================================
- ♻ Update RL-Swarm — v4 (CPU)
+ ♻  UPDATE RL-SWARM — v4 (CPU)
 =====================================================
 "
 
 
 ###########################################################################
-# ROOT
+# ROOT CHECK
 ###########################################################################
 [[ $EUID -ne 0 ]] && fail "Run as ROOT!"
 
@@ -44,32 +44,31 @@ systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || warn "Not running"
 
 
 ###########################################################################
-# CHECK REPO
+# CHECK RL-SWARM REPO
 ###########################################################################
 note "[2/5] Checking RL-Swarm repo…"
 
 if [[ ! -d "$RL_DIR/.git" ]]; then
-    warn "Repo missing → cloning clean"
+    warn "Repo missing → cloning fresh"
     rm -rf "$RL_DIR"
     git clone "$REPO_URL" "$RL_DIR"
-    say "Repo cloned"
+    say "Repo cloned ✅"
 else
-    say "Repo OK"
+    say "Repo exists ✅"
 fi
 
 
 ###########################################################################
 # UPDATE REPO
 ###########################################################################
-note "[3/5] Updating repo…"
+note "[3/5] Pulling updates…"
 
 pushd "$RL_DIR" >/dev/null
-
 git fetch --all >/dev/null 2>&1 || true
-git reset --hard origin/main >/dev/null 2>&1 || warn "reset failed"
-say "Repo updated ✅"
-
+git reset --hard origin/main >/dev/null 2>&1 || warn "git reset failed"
 popd >/dev/null
+
+say "Repo updated ✅"
 
 
 ###########################################################################
@@ -84,16 +83,16 @@ for f in "${REQ[@]}"; do
 done
 say "Identity OK ✅"
 
-mkdir -p "$RL_DIR/user"
-rm -rf "$RL_DIR/user/keys" 2>/dev/null || true
-ln -s "$KEY_DIR" "$RL_DIR/user/keys"
-say "Symlink OK ✅"
+# Fix symlink → /root/rl_swarm/keys
+rm -rf "$RL_DIR/keys" 2>/dev/null || true
+ln -s "$KEY_DIR" "$RL_DIR/keys"
+say "Symlink OK → $RL_DIR/keys → $KEY_DIR ✅"
 
 
 ###########################################################################
-# OPTIONAL DOCKER UPDATE (CPU ONLY)
+# BUILD CPU IMAGE (optional)
 ###########################################################################
-note "[5/5] Docker update…"
+note "[5/5] Update Docker image…"
 
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     COMPOSE="docker compose"
@@ -104,12 +103,11 @@ else
 fi
 
 pushd "$RL_DIR" >/dev/null
-
 $COMPOSE pull swarm-cpu || warn "pull failed"
 $COMPOSE build swarm-cpu || warn "build failed"
-
 popd >/dev/null
-say "Docker CPU image updated ✅"
+
+say "Docker image updated ✅"
 
 
 ###########################################################################
@@ -128,7 +126,11 @@ else
 fi
 
 
+###########################################################################
+# DONE
+###########################################################################
 say "✅ UPDATE COMPLETE"
+
 echo ""
 echo "➡ Follow logs:"
 echo "   journalctl -u $SERVICE_NAME -f"
