@@ -7,11 +7,10 @@ set -euo pipefail
 ###########################################################################
 
 # ===== CONFIG =====
-RL_DIR="/root/rl_swarm"
+RL_DIR="/root/rl-swarm"
 KEY_DIR="/root/deklan"
 
 REQ=("swarm.pem" "userApiKey.json" "userData.json")
-
 
 # ===== COLORS =====
 GREEN="\e[32m"
@@ -65,7 +64,7 @@ ok "Identity OK ✅"
 
 
 ###########################################################################
-#   FIX SYMLINK → /root/rl_swarm/keys
+#   FIX SYMLINK → /root/rl-swarm/keys
 ###########################################################################
 rm -rf "$RL_DIR/keys" 2>/dev/null || true
 ln -s "$KEY_DIR" "$RL_DIR/keys"
