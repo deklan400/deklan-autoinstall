@@ -2,25 +2,14 @@
 set -euo pipefail
 
 ###########################################################################
-#   GENSYN RL-SWARM — CLEAN UPDATE (SMART v3.4)
+#   GENSYN RL-SWARM — UPDATE (v4 CPU-only)
 #   by Deklan & GPT-5
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/root/rl_swarm"
+RL_DIR="/root/rl-swarm"
 KEY_DIR="/root/deklan"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm"
-
-# FLAGS:
-#   REBUILD=auto / ask / 0
-#   CLEAN=1    → docker prune
-#   MODE=fast  → skip docker + skip rebuild
-#   MODE=full  → force rebuild
-#
-# EXAMPLE:
-#   CLEAN=1 REBUILD=auto bash update.sh
-#   MODE=fast bash update.sh
-#   MODE=full bash update.sh
 
 GREEN="\e[32m"
 RED="\e[31m"
@@ -28,167 +17,118 @@ YELLOW="\e[33m"
 CYAN="\e[36m"
 NC="\e[0m"
 
-msg()  { echo -e "${GREEN}✅ $1${NC}"; }
+say()  { echo -e "${GREEN}✅ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
-err()  { echo -e "${RED}❌ $1${NC}"; }
-info() { echo -e "${CYAN}$1${NC}"; }
+fail() { echo -e "${RED}❌ $1${NC}"; exit 1; }
+note() { echo -e "${CYAN}$1${NC}"; }
 
 
-echo -e "
-${CYAN}=====================================================
-♻  UPDATE RL-SWARM — SMART v3.4
-=====================================================${NC}
+note "
+=====================================================
+ ♻ Update RL-Swarm — v4 (CPU)
+=====================================================
 "
 
 
 ###########################################################################
-# 0 — ROOT CHECK
+# ROOT
 ###########################################################################
-[[ $EUID -ne 0 ]] && err "Run as ROOT!" && exit 1
+[[ $EUID -ne 0 ]] && fail "Run as ROOT!"
 
 
 ###########################################################################
-# 1 — STOP SERVICE
+# STOP SERVICE
 ###########################################################################
-info "[1/6] Stopping service..."
-systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || warn "Service not running"
+note "[1/5] Stopping service…"
+systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || warn "Not running"
 
 
 ###########################################################################
-# 2 — ENSURE REPO EXISTS
+# CHECK REPO
 ###########################################################################
-info "[2/6] Checking RL-Swarm folder..."
+note "[2/5] Checking RL-Swarm repo…"
 
 if [[ ! -d "$RL_DIR/.git" ]]; then
-    warn "Repo broken/missing → Re-cloning..."
+    warn "Repo missing → cloning clean"
     rm -rf "$RL_DIR"
     git clone "$REPO_URL" "$RL_DIR"
-    msg "Repo cloned ✅"
+    say "Repo cloned"
 else
-    msg "Repo OK"
+    say "Repo OK"
 fi
 
 
 ###########################################################################
-# 3 — UPDATE REPO
+# UPDATE REPO
 ###########################################################################
-info "[3/6] Updating RL-Swarm repo..."
+note "[3/5] Updating repo…"
+
 pushd "$RL_DIR" >/dev/null
 
 git fetch --all >/dev/null 2>&1 || true
-git reset --hard origin/main >/dev/null 2>&1 || warn "Reset failed"
-git pull >/dev/null 2>&1 || warn "git pull failed"
+git reset --hard origin/main >/dev/null 2>&1 || warn "reset failed"
+say "Repo updated ✅"
 
 popd >/dev/null
-msg "RL-Swarm updated ✅"
 
 
 ###########################################################################
-# 4 — CHECK IDENTITY + SYMLINK
+# CHECK IDENTITY + SYMLINK
 ###########################################################################
-info "[4/6] Checking identity..."
+note "[4/5] Checking identity…"
 
 REQ=("swarm.pem" "userApiKey.json" "userData.json")
-MISS=0
 
 for f in "${REQ[@]}"; do
-    [[ ! -f "$KEY_DIR/$f" ]] && warn "Missing → $KEY_DIR/$f" && MISS=1
+    [[ -f "$KEY_DIR/$f" ]] || fail "Missing → $KEY_DIR/$f"
 done
+say "Identity OK ✅"
 
-[[ $MISS == 1 ]] && err "Identity incomplete → abort" && exit 1
-
-# Symlink
-rm -f "$RL_DIR/keys" 2>/dev/null || true
-ln -s "$KEY_DIR" "$RL_DIR/keys"
-msg "Identity OK ✅"
+mkdir -p "$RL_DIR/user"
+rm -rf "$RL_DIR/user/keys" 2>/dev/null || true
+ln -s "$KEY_DIR" "$RL_DIR/user/keys"
+say "Symlink OK ✅"
 
 
 ###########################################################################
-# 5 — .env CHECK
+# OPTIONAL DOCKER UPDATE (CPU ONLY)
 ###########################################################################
-info "[5/6] Checking .env..."
-if [[ ! -f "$RL_DIR/.env" ]]; then
-    cat <<EOF > "$RL_DIR/.env"
-GENSYN_KEY_DIR=$KEY_DIR
-PYTHONUNBUFFERED=1
-EOF
-    msg ".env created ✅"
+note "[5/5] Docker update…"
+
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE="docker-compose"
 else
-    msg ".env OK"
+    fail "docker compose not found"
 fi
 
+pushd "$RL_DIR" >/dev/null
 
-###########################################################################
-# 6 — OPTIONAL DOCKER UPDATE
-###########################################################################
-MODE="${MODE:-}"
+$COMPOSE pull swarm-cpu || warn "pull failed"
+$COMPOSE build swarm-cpu || warn "build failed"
 
-if [[ "$MODE" == "fast" ]]; then
-    warn "MODE=fast → Skipping docker build/pull"
-else
-    # detect compose
-    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-        COMPOSE="docker compose"
-    elif command -v docker-compose >/dev/null 2>&1; then
-        COMPOSE="docker-compose"
-    else
-        err "docker compose not found"
-    fi
-
-    msg "compose → $COMPOSE"
-
-    # force rebuild
-    [[ "$MODE" == "full" ]] && REBUILD="auto"
-
-    REBUILD="${REBUILD:-ask}"
-
-    do_rebuild() {
-        info "[docker] Updating images..."
-        pushd "$RL_DIR" >/dev/null
-
-        $COMPOSE pull swarm-cpu || warn "pull failed"
-        $COMPOSE build swarm-cpu || warn "build failed"
-
-        if [[ "${CLEAN:-0}" == "1" ]]; then
-            warn "Pruning docker..."
-            docker system prune -af >/dev/null 2>&1 || true
-        fi
-
-        popd >/dev/null
-        msg "Docker updated ✅"
-    }
-
-    if [[ "$REBUILD" == "auto" ]]; then
-        do_rebuild
-    elif [[ "$REBUILD" == "ask" ]]; then
-        read -p "Rebuild Docker? [Y/n] > " ans || true
-        [[ ! "$ans" =~ ^[Nn]$ ]] && do_rebuild || warn "Skip docker build"
-    else
-        warn "Skip docker rebuild"
-    fi
-fi
+popd >/dev/null
+say "Docker CPU image updated ✅"
 
 
 ###########################################################################
-# 7 — RESTART SERVICE
+# RESTART SERVICE
 ###########################################################################
-info "[6/6] Restarting service..."
+note "Restarting service…"
+
 systemctl daemon-reload
-systemctl restart "$SERVICE_NAME" || true
+systemctl restart "$SERVICE_NAME"
 sleep 2
 
 if systemctl is-active --quiet "$SERVICE_NAME"; then
-    msg "Node running ✅"
+    say "Node running ✅"
 else
-    err "Node NOT running ❌"
-    echo ""
-    echo "Last logs:"
-    journalctl -u "$SERVICE_NAME" -n 40 --no-pager
-    exit 1
+    fail "Node NOT running ❌"
 fi
 
 
-msg "✅ UPDATE COMPLETE"
+say "✅ UPDATE COMPLETE"
 echo ""
 echo "➡ Follow logs:"
 echo "   journalctl -u $SERVICE_NAME -f"
