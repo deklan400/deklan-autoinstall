@@ -17,7 +17,7 @@
 ---
 
 > 🆕 **SMART MODE**
-- Jika **NEW USER → Auto buka WebUI → login → identity dibuat otomatis**
+- Jika **NEW USER → Auto buka WebUI → login → identity otomatis terbentuk**
 - Jika **EXISTING USER → Langsung jalan**
 
 ---
@@ -29,34 +29,32 @@
 ✔ Install Docker  
 ✔ Clone RL-Swarm  
 ✔ Auto detect NEW/EXISTING user  
-✔ NEW USER → Auto login WebUI & auto generate identity  
-✔ EXISITING USER → Auto link identity  
+✔ NEW USER → Auto open WebUI → generate identity  
+✔ EXISTING USER → Auto link identity  
 ✔ Auto create symlink  
 ✔ Setup systemd service  
 ✔ Auto restart jika mati  
-✔ Easy migrate VPS  
+✔ Migrate VPS gampang  
 ✔ Clean + simple  
 
 ---
 
 ## ✅ Identity Files
 
-3 file berikut digunakan menyimpan credential akun:
-
 | File | Fungsi |
 |------|--------|
 | swarm.pem | Private key |
 | userApiKey.json | API credential |
-| userData.json | Meta account |
+| userData.json | Metadata akun |
 
-Tersimpan di:
+Lokasi penyimpanan:
 
 ```
 /root/deklan/
 ```
 
-✅ NEW USER → file akan tercipta otomatis  
-✅ EXISTING USER → pastikan 3 file ini ada
+✅ NEW USER → file dibuat otomatis  
+✅ EXISTING USER → wajib ada 3 file ini  
 
 ---
 
@@ -68,8 +66,8 @@ Tersimpan di:
 bash <(curl -s https://raw.githubusercontent.com/deklan400/deklan-autoinstall/main/install.sh)
 ```
 
-✅ NEW USER → auto login WebUI → lanjut otomatis  
-✅ EXISTING USER → auto jalan daemon  
+✅ NEW USER → auto login WebUI → lanjut  
+✅ EXISTING USER → langsung daemon  
 
 ---
 
@@ -186,7 +184,7 @@ REMOVE_KEYS=1 bash uninstall.sh
 ⚠ `swarm.pem` = PRIVATE KEY  
 → Jangan upload online  
 → Backup offline  
-→ Script lokal — tidak kirim data keluar  
+→ Script lokal — tidak mengirim data keluar  
 
 ---
 
@@ -208,3 +206,4 @@ REMOVE_KEYS=1 bash uninstall.sh
 Dark • Fast • Clean
 
 </div>
+
