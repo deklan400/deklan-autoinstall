@@ -10,8 +10,10 @@ SERVICE_NAME="gensyn"
 RL_DIR="/root/rl-swarm"
 KEY_DIR="/root/deklan"
 
+# REMOVE_KEYS=1 → identity ikut dihapus
 REMOVE_KEYS="${REMOVE_KEYS:-0}"
 
+# ===== Colors =====
 GREEN="\e[32m"
 RED="\e[31m"
 YELLOW="\e[33m"
@@ -22,6 +24,7 @@ msg()  { echo -e "${GREEN}✅ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
 fail() { echo -e "${RED}❌ $1${NC}"; exit 1; }
 info() { echo -e "${CYAN}$1${NC}"; }
+
 
 info "
 =====================================================
@@ -37,7 +40,7 @@ info "
 
 
 ###########################################################################
-# STOP + REMOVE systemd
+# STOP + REMOVE SYSTEMD
 ###########################################################################
 info "[1/5] Removing node service…"
 
@@ -51,7 +54,7 @@ msg "Node service removed ✅"
 
 
 ###########################################################################
-# REMOVE RL-SWARM
+# REMOVE RL-SWARM DIR
 ###########################################################################
 info "[2/5] Removing RL-Swarm folder…"
 
@@ -64,7 +67,7 @@ fi
 
 
 ###########################################################################
-# REMOVE identity (optional)
+# OPTIONAL — REMOVE IDENTITY
 ###########################################################################
 info "[3/5] Identity folder → $KEY_DIR"
 
@@ -73,7 +76,7 @@ if [[ "$REMOVE_KEYS" == "1" ]]; then
         rm -rf "$KEY_DIR"
         msg "Identity removed ✅"
     else
-        warn "Identity folder missing → skip"
+        warn "Identity missing → skip"
     fi
 else
     warn "Identity retained (set REMOVE_KEYS=1 to delete)"
@@ -81,21 +84,22 @@ fi
 
 
 ###########################################################################
-# docker cleanup
+# DOCKER CLEANUP
 ###########################################################################
 info "[4/5] Cleaning docker objects…"
 
 if command -v docker >/dev/null 2>&1; then
 
-    # stop & remove swarm containers
+    # stop/remove related containers
     docker ps -a --filter "name=swarm-cpu" -q \
       | xargs -r docker rm -f >/dev/null 2>&1 || true
 
-    # remove CPU swarm images
-    docker images | grep "swarm-cpu" | awk '{print $3}' \
+    # remove related images
+    docker images | grep -E "swarm-cpu" | awk '{print $3}' \
       | xargs -r docker rmi -f >/dev/null 2>&1 || true
 
     docker network prune -f >/dev/null 2>&1 || true
+
     msg "Docker cleaned ✅"
 else
     warn "Docker not installed → skip"
@@ -107,7 +111,7 @@ fi
 ###########################################################################
 info "[5/5] Removing symlink…"
 
-rm -f "$RL_DIR/user/keys" 2>/dev/null || true
+rm -f "$RL_DIR/keys" 2>/dev/null || true
 msg "Symlink cleaned ✅"
 
 
@@ -120,8 +124,8 @@ ${GREEN}=====================================================
 =====================================================
 
 ✔ Node service removed
-✔ RL-Swarm removed
-✔ Docker cleaned
+✔ RL-Swarm folder removed
+✔ Docker cleanup done
 ✔ Symlink cleaned
 ✔ Keys kept (unless REMOVE_KEYS=1)
 
