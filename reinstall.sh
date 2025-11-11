@@ -7,7 +7,7 @@ set -euo pipefail
 ###########################################################################
 
 SERVICE_NAME="gensyn"
-RL_DIR="/root/rl-swarm"
+RL_DIR="/root/rl_swarm"
 KEY_DIR="/root/deklan"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm"
 
@@ -38,7 +38,7 @@ info "
 
 
 ###########################################################################
-# STOP SERVICE (if exists)
+# STOP SERVICE
 ###########################################################################
 info "[1/5] Stopping service…"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
@@ -46,7 +46,7 @@ systemctl disable "$SERVICE_NAME" 2>/dev/null || true
 
 
 ###########################################################################
-# CHECK + REPAIR REPO
+# CHECK REPO
 ###########################################################################
 info "[2/5] Fixing RL-Swarm repo…"
 
@@ -84,16 +84,15 @@ msg "Identity OK ✅"
 ###########################################################################
 # FIX SYMLINK
 ###########################################################################
-mkdir -p "$RL_DIR/user"
-rm -rf "$RL_DIR/user/keys" 2>/dev/null || true
-ln -s "$KEY_DIR" "$RL_DIR/user/keys"
-msg "Symlink OK → $RL_DIR/user/keys → $KEY_DIR"
+rm -rf "$RL_DIR/keys" 2>/dev/null || true
+ln -s "$KEY_DIR" "$RL_DIR/keys"
+msg "Symlink OK → $RL_DIR/keys → $KEY_DIR"
 
 
 ###########################################################################
 # UPDATE DOCKER CPU IMAGE
 ###########################################################################
-info "[4/5] Update CPU docker image…"
+info "[4/5] Updating docker image…"
 
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     COMPOSE="docker compose"
@@ -108,7 +107,7 @@ $COMPOSE pull swarm-cpu || warn "pull failed"
 $COMPOSE build swarm-cpu || warn "build failed"
 popd >/dev/null
 
-msg "Docker CPU image updated ✅"
+msg "Docker image updated ✅"
 
 
 ###########################################################################
