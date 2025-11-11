@@ -1,5 +1,5 @@
 [Unit]
-Description=Gensyn RL-Swarm Node
+Description=Gensyn RL-Swarm Node (CPU)
 After=network-online.target docker.service
 Wants=network-online.target docker.service
 Requires=docker.service
@@ -7,26 +7,26 @@ Requires=docker.service
 [Service]
 Type=simple
 
-# Working folder
-WorkingDirectory=/root/rl_swarm
+# ✅ Working directory (PASTI BENAR)
+WorkingDirectory=/root/rl-swarm
 
-# Symlink keys enforcement
-ExecStartPre=/bin/bash -c 'rm -rf /root/rl_swarm/keys && ln -s /root/deklan /root/rl_swarm/keys'
+# ✅ Pastikan symlink keys SELALU benar
+ExecStartPre=/bin/bash -c 'rm -rf /root/rl-swarm/keys && ln -s /root/deklan /root/rl-swarm/keys'
 
-# Start Node (CPU only)
+# ✅ Run CPU node
 ExecStart=/usr/bin/docker compose run --rm -Pit swarm-cpu
 
-# Stop cleanly
+# ✅ Stop cleanly
 ExecStop=/usr/bin/docker compose down
 
-# Auto-restart if fail
+# ✅ Restart policy
 Restart=always
 RestartSec=5
 
-# Resource
+# ✅ Recommended limit
 LimitNOFILE=65535
 
-# Logs
+# ✅ Logging
 StandardOutput=journal
 StandardError=journal
 
