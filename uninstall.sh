@@ -1,134 +1,93 @@
 #!/usr/bin/env bash
 set -euo pipefail
+#######################################################################################
+# 🧹 DEKLAN-SUITE UNINSTALLER — v6  (RL-Swarm + Bot + Monitor)
+# by Deklan × GPT-5 (Fusion Project)
+#######################################################################################
 
-###########################################################################
-#   GENSYN RL-SWARM — UNINSTALL (v4 CPU-only)
-#   by Deklan & GPT-5
-###########################################################################
-
-SERVICE_NAME="gensyn"
+SERVICES=("gensyn" "bot" "monitor.timer" "monitor.service")
 RL_DIR="/root/rl-swarm"
+BOT_DIR="/opt/deklan-node-bot"
 KEY_DIR="/root/deklan"
 
-# REMOVE_KEYS=1 → identity ikut dihapus
+# REMOVE_KEYS=1 → ikut hapus identity (swarm.pem, userApiKey.json, userData.json)
 REMOVE_KEYS="${REMOVE_KEYS:-0}"
 
 # ===== Colors =====
-GREEN="\e[32m"
-RED="\e[31m"
-YELLOW="\e[33m"
-CYAN="\e[36m"
-NC="\e[0m"
-
-msg()  { echo -e "${GREEN}✅ $1${NC}"; }
-warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
-fail() { echo -e "${RED}❌ $1${NC}"; exit 1; }
-info() { echo -e "${CYAN}$1${NC}"; }
-
+GREEN="\e[32m"; RED="\e[31m"; YELLOW="\e[33m"; CYAN="\e[36m"; NC="\e[0m"
+msg(){ echo -e "${GREEN}✅ $1${NC}"; }; warn(){ echo -e "${YELLOW}⚠ $1${NC}"; }
+fail(){ echo -e "${RED}❌ $1${NC}"; exit 1; }; info(){ echo -e "${CYAN}$1${NC}"; }
 
 info "
 =====================================================
- 🧹  UNINSTALL — GENSYN RL-SWARM (CPU-only)
+ 🧹  UNINSTALL — DEKLAN-SUITE (Node + Bot + Monitor)
 =====================================================
 "
 
-
-###########################################################################
-# ROOT CHECK
-###########################################################################
 [[ $EUID -ne 0 ]] && fail "Run as ROOT!"
 
-
-###########################################################################
-# STOP + REMOVE SYSTEMD
-###########################################################################
-info "[1/5] Removing node service…"
-
-systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-
-rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+# ───────────────────────────────────────────────
+# 1. Stop & disable all services
+# ───────────────────────────────────────────────
+info "[1/6] Stopping and disabling services…"
+for svc in "${SERVICES[@]}"; do
+  systemctl stop "$svc" 2>/dev/null || true
+  systemctl disable "$svc" 2>/dev/null || true
+  rm -f "/etc/systemd/system/${svc}" "/etc/systemd/system/${svc}.service" 2>/dev/null || true
+done
 systemctl daemon-reload
+msg "Services stopped and removed ✅"
 
-msg "Node service removed ✅"
+# ───────────────────────────────────────────────
+# 2. Remove RL-Swarm directory
+# ───────────────────────────────────────────────
+info "[2/6] Removing RL-Swarm directory…"
+[[ -d "$RL_DIR" ]] && rm -rf "$RL_DIR" && msg "Removed → $RL_DIR" || warn "RL-Swarm folder not found"
 
+# ───────────────────────────────────────────────
+# 3. Remove Bot directory
+# ───────────────────────────────────────────────
+info "[3/6] Removing Bot directory…"
+[[ -d "$BOT_DIR" ]] && rm -rf "$BOT_DIR" && msg "Removed → $BOT_DIR" || warn "Bot folder not found"
 
-###########################################################################
-# REMOVE RL-SWARM DIR
-###########################################################################
-info "[2/5] Removing RL-Swarm folder…"
-
-if [[ -d "$RL_DIR" ]]; then
-    rm -rf "$RL_DIR"
-    msg "Removed → $RL_DIR"
-else
-    warn "RL-Swarm not found → skip"
-fi
-
-
-###########################################################################
-# OPTIONAL — REMOVE IDENTITY
-###########################################################################
-info "[3/5] Identity folder → $KEY_DIR"
-
+# ───────────────────────────────────────────────
+# 4. Optional — Remove identity
+# ───────────────────────────────────────────────
+info "[4/6] Handling identity folder…"
 if [[ "$REMOVE_KEYS" == "1" ]]; then
-    if [[ -d "$KEY_DIR" ]]; then
-        rm -rf "$KEY_DIR"
-        msg "Identity removed ✅"
-    else
-        warn "Identity missing → skip"
-    fi
+  [[ -d "$KEY_DIR" ]] && rm -rf "$KEY_DIR" && msg "Identity removed ✅" || warn "Identity not found"
 else
-    warn "Identity retained (set REMOVE_KEYS=1 to delete)"
+  warn "Identity kept (set REMOVE_KEYS=1 to delete)"
 fi
 
-
-###########################################################################
-# DOCKER CLEANUP
-###########################################################################
-info "[4/5] Cleaning docker objects…"
-
+# ───────────────────────────────────────────────
+# 5. Docker cleanup
+# ───────────────────────────────────────────────
+info "[5/6] Cleaning Docker objects…"
 if command -v docker >/dev/null 2>&1; then
-
-    # stop/remove related containers
-    docker ps -a --filter "name=swarm-cpu" -q \
-      | xargs -r docker rm -f >/dev/null 2>&1 || true
-
-    # remove related images
-    docker images | grep -E "swarm-cpu" | awk '{print $3}' \
-      | xargs -r docker rmi -f >/dev/null 2>&1 || true
-
-    docker network prune -f >/dev/null 2>&1 || true
-
-    msg "Docker cleaned ✅"
+  docker ps -aq | xargs -r docker rm -f >/dev/null 2>&1 || true
+  docker images | grep -E "swarm-cpu" | awk '{print $3}' | xargs -r docker rmi -f >/dev/null 2>&1 || true
+  docker network prune -f >/dev/null 2>&1 || true
+  msg "Docker cleaned ✅"
 else
-    warn "Docker not installed → skip"
+  warn "Docker not installed → skip"
 fi
 
-
-###########################################################################
-# REMOVE SYMLINK
-###########################################################################
-info "[5/5] Removing symlink…"
-
+# ───────────────────────────────────────────────
+# 6. Final check
+# ───────────────────────────────────────────────
+info "[6/6] Finalizing cleanup…"
 rm -f "$RL_DIR/keys" 2>/dev/null || true
-msg "Symlink cleaned ✅"
+msg "Symlinks removed ✅"
 
-
-###########################################################################
-# DONE
-###########################################################################
 echo -e "
 ${GREEN}=====================================================
- ✅ UNINSTALL COMPLETE
+ ✅ DEKLAN-SUITE UNINSTALL COMPLETE
 =====================================================
-
-✔ Node service removed
-✔ RL-Swarm folder removed
-✔ Docker cleanup done
-✔ Symlink cleaned
-✔ Keys kept (unless REMOVE_KEYS=1)
-
-=====================================================
-${NC}
+✔ All services removed
+✔ RL-Swarm & Bot folders deleted
+✔ Docker cleaned
+✔ Identity kept (unless REMOVE_KEYS=1)
+=====================================================${NC}
 "
+
